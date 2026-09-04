@@ -1,11 +1,11 @@
 ---
 name: ios-trace
-description: Autonomous closed-loop performance optimization engine for iOS and iPadOS applications using xctrace and Xcode Instruments on physical devices and simulators. Handles the complete lifecycle: aligning optimization targets with the user, headless diagnostic trace capture, isolating bottlenecks, implementing code fixes, re-testing with differential A/B verification, and iterating until performance goals are met without manual GUI intervention. Use when the user reports battery drain or device overheating, high CPU usage, memory spikes or Jetsam OOM crashes, UI hitches or dropped frames (including ProMotion 120Hz stutter), slow cold launch, or excessive network radio overhead in an iOS/iPadOS app, and asks to profile, benchmark, or optimize it.
-compatibility: macOS 12+ host, iOS 15+ physical device or simulator, Xcode Command Line Tools, Python 3.8+
+description: "Autonomous closed-loop performance optimization engine for iOS and iPadOS applications using xctrace and Xcode Instruments on physical devices and simulators. Handles the complete lifecycle: aligning optimization targets with the user, headless diagnostic trace capture, isolating bottlenecks, implementing code fixes, re-testing with differential A/B verification, and iterating until performance goals are met without manual GUI intervention. Use when the user reports battery drain or device overheating, high CPU usage, memory spikes or Jetsam OOM crashes, UI hitches or dropped frames (including ProMotion 120Hz stutter), slow cold launch, or excessive network radio overhead in an iOS/iPadOS app, and asks to profile, benchmark, or optimize it."
+compatibility: "macOS 12+ host, iOS 15+ physical device or simulator, Xcode Command Line Tools, Python 3.8+"
 license: MIT
 metadata:
   author: kmgcc
-  version: "1.2.0"
+  version: "1.2.1"
 ---
 
 # iOS-Trace: Autonomous Application Performance Optimization
