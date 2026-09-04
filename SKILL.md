@@ -1,22 +1,75 @@
 ---
 name: ios-trace
-description: Profile iOS applications headlessly on physical devices and simulators using xctrace and Xcode Instruments. Use when diagnosing iOS device thermal throttling, battery drain, network radio overhead, ProMotion 120Hz frame drops, UI hitches, audio glitches, memory spikes or leaks, or when validating mobile optimizations with differential A/B benchmarks.
+description: Autonomous closed-loop performance optimization engine for iOS and iPadOS applications using xctrace and Xcode Instruments on physical devices and simulators. Handles the complete lifecycle: aligning optimization targets with the user, headless diagnostic trace capture, isolating bottlenecks, implementing code fixes, re-testing with differential A/B verification, and iterating until performance goals are met without manual GUI intervention.
 compatibility: macOS 12+ host, iOS 15+ physical device or simulator, Xcode Command Line Tools, Python 3.8+
 license: MIT
 metadata:
   author: kmgcc
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
-# iOS-Trace: Headless Performance Profiling for iOS
+# iOS-Trace: Autonomous Application Performance Optimization
 
-A headless Xcode Instruments profiling toolchain and automation protocol designed specifically for **iOS applications running on physical iPhone/iPad devices and iOS Simulators**.
+`iOS-Trace` is a closed-loop performance optimization engine for iOS and iPadOS applications running on physical iPhone/iPad devices and local iOS Simulators (SwiftUI, UIKit, Metal, CoreAudio / AVAudioEngine, and URLSession networking).
 
-Use this skill to automate trace collection, extract data from Instruments tables into structured XML, and produce quantitative metrics and A/B comparisons without opening the Instruments GUI.
+The core objective is to eliminate manual Instruments GUI interaction. An AI agent can autonomously diagnose, locate bottlenecks, implement code changes, re-test with differential benchmarking, and iterate until performance targets are verified with empirical data.
+
+```text
++-------------------------------------------------------------------------+
+|                  The Autonomous Optimization Loop                        |
+|                                                                         |
+|  1. Goal Alignment ──> 2. Diagnostic Trace ──> 3. Targeted Code Fix     |
+|         ^                                                 │             |
+|         │                                                 ▼             |
+|         └────── Iterate if Target Not Met <── 4. Re-test Verification   |
++-------------------------------------------------------------------------+
+```
+
+---
+
+## Phase 1: User Goal Alignment (Pre-Flight Questionnaire)
+
+Before modifying code or collecting traces on mobile devices, the agent must align with the user on optimization targets and success criteria.
+
+### Modal Tool vs Chat Interaction
+- **If your agent platform provides an interactive questionnaire/modal tool** (e.g., `ask_question`, input dialogs, or selectable option lists), invoke it to present these choices cleanly to the user.
+- **If no modal tool is available**, ask the user directly in the conversation with structured options and concrete recommended values.
+
+### Questions to Ask the User
+
+1. **Primary Optimization Objective**:
+   - Option A: Reduce battery drain, CPU utilization, and thermal throttling.
+   - Option B: Lower memory footprint, transient allocation spikes, or prevent Jetsam OOM crashes.
+   - Option C: Eliminate UI frame stuttering and dropped animation frames (ProMotion 120Hz Hitches).
+   - Option D: Accelerate mobile application cold launch time.
+   - Option E: Optimize network radio overhead and batch request efficiency.
+
+2. **Specific Performance Targets (Provide Recommended Defaults)**:
+   - **Battery & CPU Targets**:
+     - *Idle Baseline Target*: < 15 M/s instructions, CPU Impact < 0.3.
+     - *Active Workload Target*: < 80 M/s instructions (or specify: reduce by 30% - 50%).
+   - **Memory & Jetsam Targets**:
+     - *Maximum Resident RAM*: Cap at < 150 MB (standard utilities) or < 300 MB (media/rich interactive apps).
+     - *Allocation Event Rate*: < 400 events/sec during steady-state interaction.
+     - *Memory Leaks*: Exactly 0 persistent leaks.
+   - **UI Smoothness & Frame Rate Targets**:
+     - *Hitch Ratio*: < 5.0 ms/s (acceptable), < 1.0 ms/s (fluid / 120Hz ProMotion grade).
+     - *Max Hitch Duration*: < 16.6ms (60Hz) or < 8.33ms (120Hz).
+   - **Launch Time Targets**:
+     - *Time to First Frame*: < 400 ms (excellent), < 800 ms (acceptable).
+   - **Network & Radio Targets**:
+     - *Radio Overhead*: Batch periodic pings into single burst requests to avoid radio tail standby power.
+
+3. **Benchmark User Scenario**:
+   - Ask the user which specific screen, user interaction, physical device, or simulator to benchmark.
+
+Once targets are confirmed, proceed to Phase 2.
+
+---
 
 ## Scope and Prerequisites
 
-- **Target platforms**: iOS, iPadOS physical devices connected via USB or local network, and local iOS Simulators. (For macOS desktop applications, use `macOS-Trace` instead).
+- **Target platforms**: iOS and iPadOS applications running on physical iPhone/iPad devices connected via USB or local network, or local iOS Simulators. (For macOS desktop applications, use [macOS-Trace](https://github.com/kmgcc/macOS-Trace)).
 - **Host system**: macOS 12+ running on Apple Silicon or Intel Mac with full Xcode or Xcode Command Line Tools (`xcode-select -p`, `xcrun xctrace version`).
 - **Device readiness**:
   - The physical iPhone/iPad must be unlocked and trusted by the Mac host.
@@ -25,76 +78,116 @@ Use this skill to automate trace collection, extract data from Instruments table
 - **Python**: Python 3.8+ on the host Mac (uses standard library only; zero external pip dependencies).
 - **Process entitlements**: Debug builds or developer-provisioned builds with `get-task-allow` entitlement are required for `--attach <PID>`.
 
+---
+
 ## Rules for Agents
 
-Follow these constraints when profiling or verifying performance changes on iOS:
+Follow these non-negotiable rules during automated profiling:
 
 1. **Verify device connection state**: Always run `xcrun xctrace list devices` before recording. Never attempt to record against a device listed under `== Devices Offline ==`.
-2. **Confirm real workload state**: On mobile devices, an idle app consumes minimal power. Ensure the feature under test is actively running (e.g. active audio stream, active network packets, active touch animation). If testing network features, verify that WiFi or Cellular transmission is actively occurring.
-3. **Establish an idle baseline first**: Never record only the active workload. Always capture an idle baseline run (app in foreground, device screen on, workload paused) before recording the active state. Compute: `Delta = Active - Baseline`.
-4. **Prevent screen lock and backgrounding**: If the iOS device locks or returns to the home screen, iOS suspends or throttles the process, producing invalid measurements. Keep the device awake and the app in the foreground.
+2. **Prevent screen lock and backgrounding**: If the iOS device locks or returns to the home screen, iOS suspends or throttles the process, producing invalid measurements. Keep the device awake and the app in the foreground.
+3. **Establish a baseline first**: Never record only the active workload. Always capture an idle baseline run (app in foreground, device screen on, workload paused) before recording the active state. Compute: `Delta = Active - Baseline`.
+4. **Use equal test parameters**: Compare runs with identical sample durations (default: `60s`), identical device battery states (avoid profiling while under 20% battery or Low Power Mode), and identical test input data.
 5. **No third-party Python dependencies**: All bundled scripts (`scripts/compare_elements.py`, `scripts/parse_power.py`, `scripts/top_categories.py`) use the Python 3 standard library only.
 6. **Save outputs to `/tmp/ios-traces/`**: Store all `.trace` bundles and `.xml` exports in `/tmp/ios-traces/` with timestamped and scenario-tagged filenames.
 
-## Standard Workflow
+---
 
-### 1. Pre-Flight and Device Discovery
+## The 4-Phase Optimization Protocol
 
-```bash
-# 1. Verify tooling
-xcrun xctrace version
-python3 --version
+### Phase 2: Diagnostic Profiling & Attribution
 
-# 2. List connected devices and simulators
-xcrun xctrace list devices
-
-# 3. Locate target process PID on device (if app is already running)
-DEVICE_UDID="00008140-000C54310E82801C"
-xcrun devicectl device info processes --device "$DEVICE_UDID"
-```
-
-### 2. Record and Analyze (Using `scripts/run_trace.sh`)
-
-The script wraps `xcrun xctrace record`, `xcrun xctrace export`, and the Python parser into a single command:
+Before writing code, measure the current state on the device and isolate the root cause:
 
 ```bash
-# Step 1: Record 60s idle baseline on physical device
-./scripts/run_trace.sh \
+# 1. Discover online physical device UDID
+DEVICE_UDID=$(xcrun xctrace list devices 2>&1 | awk '/== Devices ==/{flag=1; next} /== Devices Offline ==/{flag=0} flag && !/Mac/ && NF {print; exit}' | sed -E 's/.*\(([A-Fa-f0-9-]+)\).*/\1/')
+BUNDLE_ID="com.example.MyApp"
+SKILL_DIR=".agents/skills/ios-trace"
+
+# 2. Record 60s idle baseline (device unlocked, app foregrounded, workload paused)
+"$SKILL_DIR/scripts/run_trace.sh" \
   --device "$DEVICE_UDID" \
-  --bundle-id "com.example.MyApp" \
+  --bundle-id "$BUNDLE_ID" \
   --template power \
   --duration 60s \
-  --label "01-idle-base"
+  --label "01-baseline"
 
-# Step 2: Trigger the target feature in the app, then record 60s active state
-./scripts/run_trace.sh \
+# 3. Trigger target workload in app, record active state
+"$SKILL_DIR/scripts/run_trace.sh" \
   --device "$DEVICE_UDID" \
   --process "MyApp" \
   --template power \
   --duration 60s \
-  --label "02-active-workload"
+  --label "02-pre-opt"
+
+# 4. Compute pre-optimization delta
+python3 "$SKILL_DIR/scripts/compare_elements.py" \
+  /tmp/ios-traces/01-baseline-power.xml:"Idle Baseline" \
+  /tmp/ios-traces/02-pre-opt-power.xml:"Active Pre-Opt"
 ```
 
-### 3. Compute A/B Differential
+Use the specialized templates to attribute the bottleneck:
+- Run `--template time` to isolate hot call-tree functions on worker threads.
+- Run `--template alloc` with `scripts/top_categories.py` to identify thrashing allocations causing memory pressure.
+- Run `--template hitches` during scrolling to isolate render vs commit delays on ProMotion displays.
+- Run `--template network` to detect continuous unbatched radio wakeups.
 
-Pass the exported XML files to `scripts/compare_elements.py`. The first file is treated as the reference baseline:
+### Phase 3: Targeted Code Modification
+
+Apply minimal, surgical fixes based on findings:
+- **Memory Spikes & Jetsam**: Adopt downsampling for high-resolution images with `CGImageSourceCreateThumbnailAtIndex` instead of loading full-size `UIImage`.
+- **ProMotion Hitches**: Remove complex shadows and offscreen blending passes; offload heavy view layout calculations from the main thread.
+- **Radio Energy Overhead**: Batch periodic network requests into unified payload bursts to eliminate radio tail standby power.
+- **Real-Time Audio**: Ensure zero heap allocations in CoreAudio render callbacks (`AVAudioEngine` or RemoteIO).
+
+Rebuild the application and deploy to the device.
+
+### Phase 4: Re-Test, Quantitative Review & Decision Gate
+
+Rerun the profile under identical conditions and evaluate the delta:
 
 ```bash
-python3 scripts/compare_elements.py \
-  /tmp/ios-traces/01-idle-base-power.xml:"1. Idle Baseline" \
-  /tmp/ios-traces/02-active-workload-power.xml:"2. Active Workload"
+# 1. Record post-optimization active workload
+"$SKILL_DIR/scripts/run_trace.sh" \
+  --device "$DEVICE_UDID" \
+  --process "MyApp" \
+  --template power \
+  --duration 60s \
+  --label "03-post-opt"
+
+# 2. Compare Pre-Opt vs Post-Opt against Baseline
+python3 "$SKILL_DIR/scripts/compare_elements.py" \
+  /tmp/ios-traces/01-baseline-power.xml:"Idle Baseline" \
+  /tmp/ios-traces/02-pre-opt-power.xml:"Active Pre-Opt" \
+  /tmp/ios-traces/03-post-opt-power.xml:"Active Post-Opt"
 ```
 
-Output example:
+Example Decision Output:
+
 ```text
 Scenario                 Sec  CPU Avg  CPU Max  Display  GPU Avg  Total Instr    Instr M/s   WiFi Tx/Rx
 =========================================================================================================
-1. Idle Baseline          60     0.12     0.60     0.05     0.00        0.85G         14.2   0.0/0.0MB
-2. Active Workload        60     2.40     4.80     1.10     1.80       15.60G        260.0  14.2/1.8MB
+Idle Baseline             60     0.12     0.60     0.05     0.00        0.85G         14.2   0.0/0.0MB
+Active Pre-Opt            60     2.40     4.80     1.10     1.80       15.60G        260.0  14.2/1.8MB
+Active Post-Opt           60     0.55     1.10     0.15     0.20        4.20G         70.0   2.1/0.4MB
 ---------------------------------------------------------------------------------------------------------
-Differential vs Baseline [1. Idle Baseline]:
-  2. Active Workload        +245.8 M/s instructions, CPU Avg Delta +2.28, WiFi Tx Delta +14.20MB
+Differential vs Baseline [Idle Baseline]:
+  Active Pre-Opt            +245.8 M/s instructions, CPU Avg Delta +2.28, WiFi Tx Delta +14.20MB
+  Active Post-Opt           +55.8 M/s instructions, CPU Avg Delta +0.43, WiFi Tx Delta +2.10MB
+
+Optimization Delta (Post-Opt vs Pre-Opt):
+  Instruction throughput: -73.1% (70.0 vs 260.0 M/s)
+  CPU Average Impact:     -77.1% (0.55 vs 2.40)
+  GPU Average Impact:     -88.9% (0.20 vs 1.80)
+  WiFi Radio Traffic:     -85.2% (2.1MB vs 14.2MB)
 ```
+
+**Decision Gate Logic**:
+- **Target Met**: Present the empirical comparison table to the user and conclude.
+- **Target Not Met**: Keep the previous optimization, isolate the next remaining hotspot, and repeat Phase 3 and Phase 4.
+
+---
 
 ## Direct CLI Commands
 

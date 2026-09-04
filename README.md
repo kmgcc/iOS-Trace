@@ -10,9 +10,52 @@
 
 > Looking for macOS desktop application profiling? See [macOS-Trace](https://github.com/kmgcc/macOS-Trace).
 
-Headless profiling and quantitative A/B benchmarking toolchain for **iOS and iPadOS applications** running on physical iPhone/iPad devices and iOS Simulators using `xctrace` and Xcode Instruments.
+Autonomous, closed-loop application performance optimization engine for **iOS and iPadOS applications** running on physical iPhone/iPad devices and iOS Simulators using `xctrace` and Xcode Instruments.
 
-Designed for AI coding agents (Claude Code, OpenAI Codex, Cursor, Google Antigravity, GitHub Copilot) and iOS engineers. It automates device trace collection, table data extraction via XPath, and differential performance analysis without opening the Instruments GUI.
+Designed for AI coding agents (Claude Code, OpenAI Codex, Cursor, Google Antigravity, GitHub Copilot) and iOS engineers. It completely eliminates manual Instruments GUI interaction. From a single prompt, an agent can align on optimization goals with the user, capture headless diagnostic traces, implement targeted code fixes, and re-test with differential benchmarking across multiple iterations until the user's requirements are met.
+
+---
+
+## The Autonomous Optimization Loop
+
+```text
++-------------------------------------------------------------------------+
+|                  The Autonomous Optimization Loop                        |
+|                                                                         |
+|  1. Goal Alignment ──> 2. Diagnostic Trace ──> 3. Targeted Code Fix     |
+|         ^                                                 │             |
+|         │                                                 ▼             |
+|         └────── Iterate if Target Not Met <── 4. Re-test Verification   |
++-------------------------------------------------------------------------+
+```
+
+1. **Goal Alignment**: The agent queries the user upfront (via interactive questionnaire modal if available, or direct chat) with concrete recommended thresholds.
+2. **Diagnostic Profiling**: Headless trace capture under idle baseline and active workload on device/simulator to isolate hot call-frames, allocation spikes, and radio tails.
+3. **Code Modification**: The agent implements surgical, source-level optimizations directly in the codebase.
+4. **Re-Test Verification**: Automated re-profiling under identical conditions to compute empirical Before vs After deltas.
+5. **Iteration Gate**: If the user's targets are met, deliver the final report; if not, initiate the next optimization round automatically.
+
+---
+
+## Upfront Goal Alignment (Pre-Flight Questionnaire)
+
+Before making changes or running traces, agents should align on targets with the user:
+
+- **Interactive Modal / Components**: If the agent platform provides an interactive modal or prompt tool (e.g. `ask_question`), invoke it to present selectable options. Otherwise, ask directly in conversation.
+- **Recommended Threshold Presets**:
+  - **Battery & CPU**:
+    - *Idle Baseline Target*: < 15 M/s instructions, CPU Impact < 0.3.
+    - *Active Workload Target*: < 80 M/s instructions (or reduce current CPU by 30% - 50%).
+  - **Memory & Jetsam Ceilings**:
+    - *Maximum Resident RAM*: Cap at < 150 MB (standard utilities) or < 300 MB (rich media apps).
+    - *Allocation Rate*: < 400 events/sec during steady-state execution.
+    - *Leaks*: 0 persistent leaks.
+  - **UI Smoothness & Hitches**:
+    - *Hitch Ratio*: < 5.0 ms/s (acceptable), < 1.0 ms/s (fluid / 120Hz ProMotion grade).
+  - **Cold Launch Time**:
+    - *Time to First Frame*: < 400 ms (excellent), < 800 ms (acceptable).
+  - **Network & Radio Efficiency**:
+    - *Radio Standby Overhead*: Batch periodic pings into single burst requests to avoid cellular/WiFi radio tails.
 
 ---
 
@@ -72,27 +115,7 @@ mkdir -p ~/.agents/skills
 git clone https://github.com/kmgcc/iOS-Trace.git ~/.agents/skills/ios-trace
 ```
 
-### 3. Autonomous Execution Protocol for Agents
-
-```text
-Step 1: Check Tooling & Device Connection
-   │    Run xcrun xctrace list devices to ensure device is online and unlocked.
-   ▼
-Step 2: Record Idle Baseline Run
-   │    Keep screen on and app in foreground. Record 60s idle baseline.
-   ▼
-Step 3: Execute Target Workload & Record Active Run
-   │    Trigger target feature/audio/network stream. Record 60s active state.
-   ▼
-Step 4: Compute Differential Delta
-   │    Run scripts/compare_elements.py to compute:
-   │    Delta = Active - Baseline.
-   ▼
-Step 5: Report Empirical Results
-        Present table with M/s instruction delta, CPU change, and network throughput.
-```
-
-#### Protocol Command Sequence
+### 3. Complete Optimization Run Example
 
 ```bash
 SKILL_DIR=".agents/skills/ios-trace"
@@ -100,16 +123,20 @@ SKILL_DIR=".agents/skills/ios-trace"
 # 1. Find device UDID
 DEVICE_UDID=$(xcrun xctrace list devices 2>&1 | awk '/== Devices ==/{flag=1; next} /== Devices Offline ==/{flag=0} flag && !/Mac/ && NF {print; exit}' | sed -E 's/.*\(([A-Fa-f0-9-]+)\).*/\1/')
 
-# 2. Record 60s idle baseline
+# 2. Record 60s idle baseline (device unlocked, app foregrounded)
 "$SKILL_DIR/scripts/run_trace.sh" --device "$DEVICE_UDID" --bundle-id "com.example.MyApp" --template power --duration 60s --label "01-baseline"
 
-# 3. Trigger active workload in app, then record 60s active state
-"$SKILL_DIR/scripts/run_trace.sh" --device "$DEVICE_UDID" --process "MyApp" --template power --duration 60s --label "02-active"
+# 3. Trigger active workload in app, then record pre-opt active state
+"$SKILL_DIR/scripts/run_trace.sh" --device "$DEVICE_UDID" --process "MyApp" --template power --duration 60s --label "02-pre-opt"
 
-# 4. Compare runs
+# 4. Implement code fixes, rebuild and deploy to device, then record post-opt active state
+"$SKILL_DIR/scripts/run_trace.sh" --device "$DEVICE_UDID" --process "MyApp" --template power --duration 60s --label "03-post-opt"
+
+# 5. Compare Pre-Opt vs Post-Opt against Baseline
 python3 "$SKILL_DIR/scripts/compare_elements.py" \
-  /tmp/ios-traces/01-baseline-power.xml:"1. Idle Baseline" \
-  /tmp/ios-traces/02-active-power.xml:"2. Active Workload"
+  /tmp/ios-traces/01-baseline-power.xml:"Idle Baseline" \
+  /tmp/ios-traces/02-pre-opt-power.xml:"Active Pre-Opt" \
+  /tmp/ios-traces/03-post-opt-power.xml:"Active Post-Opt"
 ```
 
 ---
