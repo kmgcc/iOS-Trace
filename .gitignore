@@ -1,0 +1,28 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Instruments & trace outputs
+*.trace/
+*.trace
+*.xml
+*.dtps/
+/tmp/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
