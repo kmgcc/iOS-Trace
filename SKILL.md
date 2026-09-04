@@ -287,11 +287,3 @@ Instruments templates supported on iOS via `scripts/run_trace.sh` and headless `
 - **Audio Session interruptions**: Real-time audio rendering callbacks running on `AVAudioEngine` or RemoteIO unit must never perform heap allocation or file I/O.
 - **Background Mode**: If testing background audio or streaming, verify process behavior when transitions to background state occur (`UIApplication.didEnterBackgroundNotification`).
 
-### Heavy Surface Lifecycle & Coordinator Tokens
-- **Strict surface mutual exclusion**: When an app alternates between standard view controllers and full-screen presentations of resource-heavy components (such as `WKWebView`, Metal views, or camera previews), ensure only the currently active surface retains working instances.
-- **Host attachment tokens**: In SwiftUI / UIKit bridging (`UIViewRepresentable`), layout churn can cause a dismantled coordinator's cleanup callback to execute after a new coordinator has already attached the view. Tag attachments with unique UUID tokens so stale teardowns cannot invalidate active successors.
-- **Clean teardown over blank navigation**: Simply setting web views to `about:blank` does not immediately release script runtimes or process memory. Explicitly cancel pending tasks, remove message handlers/delegates, and release references so helper processes can terminate.
-
-### SwiftUI State Boundary & High-Frequency Clocks
-- **Decouple high-frequency timers from root view trees**: If playback clocks, animations, or sensor updates tick at 4Hz to 60Hz, avoid binding that ticking state at high levels of the SwiftUI view hierarchy. Doing so causes the entire view tree to re-evaluate on every tick.
-- **Leaf-level observation**: Split state models into a `stableProjection` (title, metadata, controls that rarely change) and a narrow `liveProjection` (current progress, audio meters). Only let terminal leaf controls observe the high-frequency tick.
