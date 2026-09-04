@@ -145,8 +145,11 @@ fi
 # Device discovery if not provided
 if [[ -z "$DEVICE" ]]; then
   echo "[INFO] No device specified. Querying available devices..."
-  # Look for connected physical devices (in == Devices == section excluding Mac host)
-  DETECTED_DEVICE=$(xcrun xctrace list devices 2>&1 | awk '/== Devices ==/{flag=1; next} /== Devices Offline ==/{flag=0} flag && !/Mac/ && NF {print; exit}')
+  # Prefer physical iPhone/iPad over other connected device types (e.g. Apple Watch)
+  DETECTED_DEVICE=$(xcrun xctrace list devices 2>&1 | awk '/== Devices ==/{flag=1; next} /== Devices Offline ==/{flag=0} flag && !/Mac/ && /iPhone|iPad/ && NF {print; exit}')
+  if [[ -z "$DETECTED_DEVICE" ]]; then
+    DETECTED_DEVICE=$(xcrun xctrace list devices 2>&1 | awk '/== Devices ==/{flag=1; next} /== Devices Offline ==/{flag=0} flag && !/Mac/ && NF {print; exit}')
+  fi
   if [[ -n "$DETECTED_DEVICE" ]]; then
     # Extract device UDID inside parentheses
     DEVICE=$(echo "$DETECTED_DEVICE" | sed -E 's/.*\(([A-Fa-f0-9-]+)\).*/\1/')
@@ -209,7 +212,7 @@ if [[ -n "$BUNDLE_ID" ]]; then
     --template "$TEMPLATE" \
     --time-limit "$DURATION" \
     --output "$TRACE_FILE" \
-    --launch -- "$BUNDLE_ID" "${EXTRA_LAUNCH_ARGS[@]}"
+    --launch -- "$BUNDLE_ID" ${EXTRA_LAUNCH_ARGS[@]+"${EXTRA_LAUNCH_ARGS[@]}"}
 elif [[ -n "$ATTACH_PID" ]]; then
   xcrun xctrace record \
     --device "$DEVICE" \

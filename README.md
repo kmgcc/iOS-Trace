@@ -3,6 +3,7 @@
 [English](README.md) | [中文](README_zh.md)
 
 [![Agent Skills Open Standard](https://img.shields.io/badge/Agent_Skills-Open_Standard-blueviolet.svg)](https://agentskills.io)
+[![Install](https://img.shields.io/badge/Install-npx_skills_add-000000.svg)](https://skills.sh/kmgcc/iOS-Trace)
 [![Platform](https://img.shields.io/badge/Platform-iOS_15%2B_%2F_iPadOS-black.svg)](https://developer.apple.com/ios/)
 [![Tooling](https://img.shields.io/badge/Xcode-Instruments_%2F_xctrace-007AFF.svg)](https://developer.apple.com/xcode/)
 [![Python](https://img.shields.io/badge/Python-3.8%2B_(Zero_Deps)-3776AB.svg)](https://www.python.org/)
@@ -90,59 +91,55 @@ Read these requirements and constraints before deploying or invoking this skill:
 
 ---
 
-## Agent Installation and Integration Guide
+## Installation
 
-This section outlines how an AI coding agent should install, locate, and execute `iOS-Trace` within an automated repository workflow.
-
-### 1. Skill Location Detection
-
-When an agent needs to install this skill into an iOS repository, it should detect the existing skill directory convention:
+### Recommended: one command with the skills CLI
 
 ```bash
-# Order of preference for agent skill directories:
-# 1. Standard Agent Skills: .agents/skills/
-# 2. OpenAI Codex:          .codex/skills/
-# 3. Cursor:                 .cursor/skills/
-# 4. Claude Code:            .claude/skills/
+npx skills add kmgcc/iOS-Trace
 ```
 
-If none exists, default to `.agents/skills/`.
+The `skills` CLI detects installed agents (Claude Code, OpenAI Codex, Cursor, GitHub Copilot, Gemini CLI, Google Antigravity, OpenCode, Windsurf, and 70+ more) and links the skill into the correct directory for each. Add `-g` to install globally for all projects, or `-a claude-code -g` to target a single agent.
 
-### 2. Installation Commands for Agents
+### Manual installation (per agent)
+
+Each agent reads skills from its own directory. The skill directory name must be `ios-trace`, matching the `name` field in `SKILL.md`:
+
+| Agent | Project scope | Global scope (all projects) |
+| :--- | :--- | :--- |
+| Claude Code | `.claude/skills/ios-trace` | `~/.claude/skills/ios-trace` |
+| OpenAI Codex | `.agents/skills/ios-trace` | `~/.codex/skills/ios-trace` |
+| Cursor | `.agents/skills/ios-trace` | `~/.cursor/skills/ios-trace` |
+| OpenCode | `.agents/skills/ios-trace` | `~/.config/opencode/skills/ios-trace` |
+| Gemini CLI | `.agents/skills/ios-trace` | `~/.gemini/skills/ios-trace` |
+| Google Antigravity | `.agents/skills/ios-trace` | `~/.gemini/antigravity/skills/ios-trace` |
+| GitHub Copilot | `.agents/skills/ios-trace` | `~/.copilot/skills/ios-trace` |
+| Amp / Cline / Warp / Zed | `.agents/skills/ios-trace` | `~/.agents/skills/ios-trace` |
 
 ```bash
-# Option A: Standard Agent Skills directory (Recommended)
-mkdir -p .agents/skills
-git clone https://github.com/kmgcc/iOS-Trace.git .agents/skills/ios-trace
+# Clone globally for Claude Code
+git clone https://github.com/kmgcc/iOS-Trace.git ~/.claude/skills/ios-trace
 
-# Option B: As a Git Submodule
-git submodule add https://github.com/kmgcc/iOS-Trace.git .agents/skills/ios-trace
-
-# Option C: OpenAI Codex specific directory
-mkdir -p .codex/skills
-git clone https://github.com/kmgcc/iOS-Trace.git .codex/skills/ios-trace
-
-# Option D: User-level global installation
-mkdir -p ~/.agents/skills
-git clone https://github.com/kmgcc/iOS-Trace.git ~/.agents/skills/ios-trace
+# Or pin it inside an iOS repository as a versioned git submodule (Claude Code project scope)
+git submodule add https://github.com/kmgcc/iOS-Trace.git .claude/skills/ios-trace
 ```
 
-### 3. Complete Optimization Run Example
+### Complete Optimization Run Example
 
 ```bash
-SKILL_DIR=".agents/skills/ios-trace"
+SKILL_DIR="$HOME/.claude/skills/ios-trace"
 
-# 1. Find device UDID
-DEVICE_UDID=$(xcrun xctrace list devices 2>&1 | awk '/== Devices ==/{flag=1; next} /== Devices Offline ==/{flag=0} flag && !/Mac/ && NF {print; exit}' | sed -E 's/.*\(([A-Fa-f0-9-]+)\).*/\1/')
+# 1. Confirm the iPhone/iPad is online and unlocked (optional; the runner auto-detects it)
+xcrun xctrace list devices
 
 # 2. Record 60s idle baseline (device unlocked, app foregrounded)
-"$SKILL_DIR/scripts/run_trace.sh" --device "$DEVICE_UDID" --bundle-id "com.example.MyApp" --template power --duration 60s --label "01-baseline"
+"$SKILL_DIR/scripts/run_trace.sh" --bundle-id "com.example.MyApp" --template power --duration 60s --label "01-baseline"
 
 # 3. Trigger active workload in app, then record pre-opt active state
-"$SKILL_DIR/scripts/run_trace.sh" --device "$DEVICE_UDID" --process "MyApp" --template power --duration 60s --label "02-pre-opt"
+"$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template power --duration 60s --label "02-pre-opt"
 
 # 4. Implement code fixes, rebuild and deploy to device, then record post-opt active state
-"$SKILL_DIR/scripts/run_trace.sh" --device "$DEVICE_UDID" --process "MyApp" --template power --duration 60s --label "03-post-opt"
+"$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template power --duration 60s --label "03-post-opt"
 
 # 5. Compare Pre-Opt vs Post-Opt against Baseline
 python3 "$SKILL_DIR/scripts/compare_elements.py" \

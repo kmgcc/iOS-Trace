@@ -1,11 +1,11 @@
 ---
 name: ios-trace
-description: Autonomous closed-loop performance optimization engine for iOS and iPadOS applications using xctrace and Xcode Instruments on physical devices and simulators. Handles the complete lifecycle: aligning optimization targets with the user, headless diagnostic trace capture, isolating bottlenecks, implementing code fixes, re-testing with differential A/B verification, and iterating until performance goals are met without manual GUI intervention.
+description: Autonomous closed-loop performance optimization engine for iOS and iPadOS applications using xctrace and Xcode Instruments on physical devices and simulators. Handles the complete lifecycle: aligning optimization targets with the user, headless diagnostic trace capture, isolating bottlenecks, implementing code fixes, re-testing with differential A/B verification, and iterating until performance goals are met without manual GUI intervention. Use when the user reports battery drain or device overheating, high CPU usage, memory spikes or Jetsam OOM crashes, UI hitches or dropped frames (including ProMotion 120Hz stutter), slow cold launch, or excessive network radio overhead in an iOS/iPadOS app, and asks to profile, benchmark, or optimize it.
 compatibility: macOS 12+ host, iOS 15+ physical device or simulator, Xcode Command Line Tools, Python 3.8+
 license: MIT
 metadata:
   author: kmgcc
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # iOS-Trace: Autonomous Application Performance Optimization
@@ -106,14 +106,16 @@ Follow these non-negotiable rules during automated profiling:
 Before writing code, measure the current state on the device and isolate the root cause:
 
 ```bash
-# 1. Discover online physical device UDID
-DEVICE_UDID=$(xcrun xctrace list devices 2>&1 | awk '/== Devices ==/{flag=1; next} /== Devices Offline ==/{flag=0} flag && !/Mac/ && NF {print; exit}' | sed -E 's/.*\(([A-Fa-f0-9-]+)\).*/\1/')
+# 1. Confirm the target device is online and unlocked (optional check;
+#    run_trace.sh auto-detects the first connected iPhone/iPad when --device is omitted)
+xcrun xctrace list devices
+
 BUNDLE_ID="com.example.MyApp"
-SKILL_DIR=".agents/skills/ios-trace"
+# SKILL_DIR = this skill's installed directory (adjust if installed elsewhere)
+SKILL_DIR="$HOME/.claude/skills/ios-trace"
 
 # 2. Record 60s idle baseline (device unlocked, app foregrounded, workload paused)
 "$SKILL_DIR/scripts/run_trace.sh" \
-  --device "$DEVICE_UDID" \
   --bundle-id "$BUNDLE_ID" \
   --template power \
   --duration 60s \
@@ -121,7 +123,6 @@ SKILL_DIR=".agents/skills/ios-trace"
 
 # 3. Trigger target workload in app, record active state
 "$SKILL_DIR/scripts/run_trace.sh" \
-  --device "$DEVICE_UDID" \
   --process "MyApp" \
   --template power \
   --duration 60s \
@@ -156,7 +157,6 @@ Rerun the profile under identical conditions and evaluate the delta:
 ```bash
 # 1. Record post-optimization active workload
 "$SKILL_DIR/scripts/run_trace.sh" \
-  --device "$DEVICE_UDID" \
   --process "MyApp" \
   --template power \
   --duration 60s \

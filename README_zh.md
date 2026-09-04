@@ -3,6 +3,7 @@
 [English](README.md) | [中文](README_zh.md)
 
 [![Agent Skills Open Standard](https://img.shields.io/badge/Agent_Skills-Open_Standard-blueviolet.svg)](https://agentskills.io)
+[![Install](https://img.shields.io/badge/Install-npx_skills_add-000000.svg)](https://skills.sh/kmgcc/iOS-Trace)
 [![Platform](https://img.shields.io/badge/Platform-iOS_15%2B_%2F_iPadOS-black.svg)](https://developer.apple.com/ios/)
 [![Tooling](https://img.shields.io/badge/Xcode-Instruments_%2F_xctrace-007AFF.svg)](https://developer.apple.com/xcode/)
 [![Python](https://img.shields.io/badge/Python-3.8%2B_(Zero_Deps)-3776AB.svg)](https://www.python.org/)
@@ -90,59 +91,55 @@
 
 ---
 
-## AI Agent 安装与集成指南
+## 安装方式
 
-本节面向 AI Agent 说明如何在移动端项目中引入并自主执行 `iOS-Trace`。
-
-### 1. 技能目录识别规范
-
-当 Agent 需要向当前仓库引入本 Skill 时，应按以下优先级探测项目中已有的技能目录：
+### 推荐：skills CLI 一条命令安装
 
 ```bash
-# Agent Skills 目录优先级探测顺序：
-# 1. 开放标准目录：  .agents/skills/
-# 2. OpenAI Codex：  .codex/skills/
-# 3. Cursor：        .cursor/skills/
-# 4. Claude Code：   .claude/skills/
+npx skills add kmgcc/iOS-Trace
 ```
 
-若当前仓库不存在上述目录，优先创建标准目录 `.agents/skills/`。
+CLI 会自动探测本机已安装的 Agent（Claude Code、OpenAI Codex、Cursor、GitHub Copilot、Gemini CLI、Google Antigravity、OpenCode、Windsurf 等 70+），并把技能链接到每个 Agent 的正确目录。加 `-g` 安装到用户级全局（所有项目可用），或 `-a claude-code -g` 只装给指定 Agent。
 
-### 2. Agent 安装命令
+### 手动安装（按 Agent 分目录）
+
+各 Agent 读取技能的目录不同，技能目录名必须是 `ios-trace`（与 SKILL.md 的 `name` 字段一致）：
+
+| Agent | 项目级 | 用户级全局 |
+| :--- | :--- | :--- |
+| Claude Code | `.claude/skills/ios-trace` | `~/.claude/skills/ios-trace` |
+| OpenAI Codex | `.agents/skills/ios-trace` | `~/.codex/skills/ios-trace` |
+| Cursor | `.agents/skills/ios-trace` | `~/.cursor/skills/ios-trace` |
+| OpenCode | `.agents/skills/ios-trace` | `~/.config/opencode/skills/ios-trace` |
+| Gemini CLI | `.agents/skills/ios-trace` | `~/.gemini/skills/ios-trace` |
+| Google Antigravity | `.agents/skills/ios-trace` | `~/.gemini/antigravity/skills/ios-trace` |
+| GitHub Copilot | `.agents/skills/ios-trace` | `~/.copilot/skills/ios-trace` |
+| Amp / Cline / Warp / Zed | `.agents/skills/ios-trace` | `~/.agents/skills/ios-trace` |
 
 ```bash
-# 推荐：安装到项目标准 Agent Skills 目录
-mkdir -p .agents/skills
-git clone https://github.com/kmgcc/iOS-Trace.git .agents/skills/ios-trace
+# 为 Claude Code 装到用户级全局
+git clone https://github.com/kmgcc/iOS-Trace.git ~/.claude/skills/ios-trace
 
-# 方式二：作为 Git Submodule 引入（便于版本跟踪）
-git submodule add https://github.com/kmgcc/iOS-Trace.git .agents/skills/ios-trace
-
-# 方式三：安装到 Codex 专用目录
-mkdir -p .codex/skills
-git clone https://github.com/kmgcc/iOS-Trace.git .codex/skills/ios-trace
-
-# 方式四：用户级全局安装（所有工作区通用）
-mkdir -p ~/.agents/skills
-git clone https://github.com/kmgcc/iOS-Trace.git ~/.agents/skills/ios-trace
+# 或作为 git submodule 固定在 iOS 工程内（Claude Code 项目级，便于版本跟踪）
+git submodule add https://github.com/kmgcc/iOS-Trace.git .claude/skills/ios-trace
 ```
 
-### 3. 完整闭环优化运行示例
+### 完整闭环优化运行示例
 
 ```bash
-SKILL_DIR=".agents/skills/ios-trace"
+SKILL_DIR="$HOME/.claude/skills/ios-trace"
 
-# 1. 自动获取已连接的首台物理真机 UDID
-DEVICE_UDID=$(xcrun xctrace list devices 2>&1 | awk '/== Devices ==/{flag=1; next} /== Devices Offline ==/{flag=0} flag && !/Mac/ && NF {print; exit}' | sed -E 's/.*\(([A-Fa-f0-9-]+)\).*/\1/')
+# 1. 确认真机在线且已解锁（可选检查；runner 会自动探测第一台已连接的 iPhone/iPad）
+xcrun xctrace list devices
 
 # 2. 采集 60 秒静置基线（应用在前台，无业务负载）
-"$SKILL_DIR/scripts/run_trace.sh" --device "$DEVICE_UDID" --bundle-id "com.example.MyApp" --template power --duration 60s --label "01-baseline"
+"$SKILL_DIR/scripts/run_trace.sh" --bundle-id "com.example.MyApp" --template power --duration 60s --label "01-baseline"
 
 # 3. 在真机上触发目标功能，采集 60 秒优化前高负载态
-"$SKILL_DIR/scripts/run_trace.sh" --device "$DEVICE_UDID" --process "MyApp" --template power --duration 60s --label "02-pre-opt"
+"$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template power --duration 60s --label "02-pre-opt"
 
 # 4. 实施源码修改、重新编译并安装到设备后，采集优化后高负载态
-"$SKILL_DIR/scripts/run_trace.sh" --device "$DEVICE_UDID" --process "MyApp" --template power --duration 60s --label "03-post-opt"
+"$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template power --duration 60s --label "03-post-opt"
 
 # 5. 执行多轮客观差值对比
 python3 "$SKILL_DIR/scripts/compare_elements.py" \
