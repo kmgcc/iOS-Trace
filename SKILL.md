@@ -5,7 +5,7 @@ compatibility: "macOS 12+ host, iOS 15+ physical device or simulator, Xcode Comm
 license: MIT
 metadata:
   author: kmgcc
-  version: "1.2.1"
+  version: "1.2.2"
 ---
 
 # iOS-Trace: Autonomous Application Performance Optimization
@@ -96,6 +96,11 @@ Follow these non-negotiable rules during automated profiling:
    - **Do not unilaterally remove or downgrade the visual feature.**
    - **Formally ask the user for permission first** (using an interactive prompt or explicit chat message).
    - **Clearly articulate the tradeoff**: Describe the visual change before and after, explain why the feature consumes resources, and present the concrete expected performance gain (e.g., "Disabling dynamic shadow and blur on card views will reduce GPU average impact from 1.8 to 0.2 and eliminate 120Hz ProMotion hitches").
+10. **Clean up recording artifacts**: Every `xctrace` recording writes several-GB transient kernel traces (`instruments*.ktrace`) and an Instruments CLI cache (`C/com.apple.dt.InstrumentsCLI`) into the per-user system temp folder (`$TMPDIR`). `scripts/run_trace.sh` removes them automatically on exit (both on success and failure). When running `xctrace` directly, clean them yourself before concluding:
+    ```bash
+    find "${TMPDIR:-/tmp}" -maxdepth 1 -type f -name 'instruments*.ktrace' -delete 2>/dev/null || true
+    ```
+    Never finish a session leaving hundreds of GB of transient recording data behind.
 
 ---
 
@@ -192,6 +197,8 @@ Optimization Delta (Post-Opt vs Pre-Opt):
 **Decision Gate Logic**:
 - **Target Met**: Present the empirical comparison table to the user and conclude.
 - **Target Not Met**: Keep the previous optimization, isolate the next remaining hotspot, and repeat Phase 3 and Phase 4.
+
+**Post-Report Cleanup**: After the user accepts the final optimization report, delete the accumulated `.trace` bundles under `/tmp/ios-traces/` (each can be tens of GB) unless the user explicitly asks to keep them. The finalized comparison table and `.xml` exports shown in the report are sufficient evidence.
 
 ---
 

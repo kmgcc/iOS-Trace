@@ -69,6 +69,8 @@
    - 严禁在几十个无辜的底层工具函数上做无意义的微优化。必须先通过诊断定位出真正的第一耗能根因（如多 surface 重复实例化、高频定时器全局重算、未合并的频繁射频唤醒），并将精力集中在主要矛盾上。
 3. **严格控制上下文预算，谨慎读取结果数据**：
    - 原始 `.trace` 文件与导出的未解析 XML 动辄几十上百兆，直接读取或转储将**瞬间撑爆 Agent 上下文**导致任务中断。必须始终通过内置 Python 脚本进行流式提取、Top 排序与差异摘要后再行分析。
+4. **及时清理录制产生的临时文件**：
+   - 每次录制都会在系统临时目录写入数 GB 的瞬时内核追踪文件（`instruments*.ktrace`）与 Instruments CLI 缓存。`scripts/run_trace.sh` 会在退出时自动清理。用户确认最终优化报告后，还应删除 `/tmp/ios-traces/` 下累计的 `.trace` 包（用户明确要求保留的除外）。严禁把上百 GB 的临时录制数据留在磁盘上。
 
 ---
 
@@ -172,7 +174,7 @@ Differential vs Baseline [1. 静置基线]:
 
 | 脚本 | 功能说明 | 常用命令示例 |
 | :--- | :--- | :--- |
-| `scripts/run_trace.sh` | 移动端终端入口：支持真机探测、启动 App、XML 导出与解析 | `./scripts/run_trace.sh --bundle-id com.example.MyApp --template power` |
+| `scripts/run_trace.sh` | 移动端终端入口：支持真机探测、启动 App、XML 导出与解析，退出时自动清理临时录制文件 | `./scripts/run_trace.sh --bundle-id com.example.MyApp --template power` |
 | `scripts/compare_elements.py` | 多场景对比表生成，包含 CPU、GPU 与 WiFi/蜂窝网络吞吐差值 | `python3 scripts/compare_elements.py base.xml active.xml` |
 | `scripts/parse_power.py` | 单次 Power Profiler 导出的功耗、GPU、指令速率及网络数据深度解析 | `python3 scripts/parse_power.py run-power.xml "测试场景"` |
 | `scripts/top_categories.py` | Allocations 堆内存高频分配速率与常驻/瞬时内存分析 | `python3 scripts/top_categories.py alloc.xml 60 10.0` |

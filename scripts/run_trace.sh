@@ -15,6 +15,21 @@ LABEL=""
 AUTO_ANALYZE=1
 EXTRA_LAUNCH_ARGS=()
 
+# Every xctrace recording writes several-GB transient kernel traces (instruments*.ktrace)
+# and an Instruments CLI cache into the per-user system temp folder. Remove only that
+# user's own transient artifacts; the recorded .trace bundle in OUTPUT_DIR is untouched.
+cleanup_recording_artifacts() {
+  local TMP_ROOT TMP_CACHE_DIR
+  TMP_ROOT="${TMPDIR:-/tmp}"
+  find "$TMP_ROOT" -maxdepth 1 -type f -name 'instruments*.ktrace' -delete 2>/dev/null || true
+  TMP_CACHE_DIR="$(dirname "$TMP_ROOT")/C/com.apple.dt.InstrumentsCLI"
+  case "$TMP_CACHE_DIR" in
+    /var/folders/*|/private/var/folders/*|/tmp/*)
+      rm -rf -- "$TMP_CACHE_DIR" 2>/dev/null || true ;;
+  esac
+}
+trap cleanup_recording_artifacts EXIT
+
 usage() {
   cat <<EOF
 iOS-Trace Automated Runner

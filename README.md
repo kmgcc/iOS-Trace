@@ -69,6 +69,8 @@ Before making changes or running traces, agents should align on targets with the
    - Avoid scattered micro-optimizations across innocent utilities. Always isolate the primary driver (e.g. redundant surface instances, unthrottled timer re-evaluations, unbuffered I/O) before modifying code.
 3. **Strict Context Window Budgeting**:
    - Raw `.trace` archives and unparsed XML tables can reach hundreds of megabytes and will crash agent context windows. Agents must never dump raw traces or unparsed tables into the chat. Always filter, stream, and rank data using the bundled Python scripts.
+4. **Clean Up Recording Artifacts**:
+   - Every recording creates several-GB transient kernel traces (`instruments*.ktrace`) and an Instruments CLI cache in the system temp folder. `scripts/run_trace.sh` removes them automatically on exit. Once the user accepts the final report, delete the accumulated `.trace` bundles in `/tmp/ios-traces/` (unless the user asks to keep them). Never leave hundreds of GB of temporary recording data behind.
 
 ---
 
@@ -172,7 +174,7 @@ All scripts require Python 3.8+ and use the standard library only (`re`, `sys`, 
 
 | Script | Function | Usage |
 | :--- | :--- | :--- |
-| `scripts/run_trace.sh` | CLI runner: device discovery, record, export, and parse | `./scripts/run_trace.sh --bundle-id com.example.MyApp --template power` |
+| `scripts/run_trace.sh` | CLI runner: device discovery, record, export, parse, and automatic temp-artifact cleanup | `./scripts/run_trace.sh --bundle-id com.example.MyApp --template power` |
 | `scripts/compare_elements.py` | Multi-run comparison table with CPU, GPU, and WiFi/Cellular delta | `python3 scripts/compare_elements.py base.xml active.xml` |
 | `scripts/parse_power.py` | Single-run breakdown of CPU, GPU, Display, and Network throughput | `python3 scripts/parse_power.py run-power.xml "Workload"` |
 | `scripts/top_categories.py` | Allocations ranking by event rate, transient, and persistent bytes | `python3 scripts/top_categories.py alloc.xml 60 10.0` |
