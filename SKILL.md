@@ -90,6 +90,12 @@ Follow these non-negotiable rules during automated profiling:
 4. **Use equal test parameters**: Compare runs with identical sample durations (default: `60s`), identical device battery states (avoid profiling while under 20% battery or Low Power Mode), and identical test input data.
 5. **No third-party Python dependencies**: All bundled scripts (`scripts/compare_elements.py`, `scripts/parse_power.py`, `scripts/top_categories.py`) use the Python 3 standard library only.
 6. **Save outputs to `/tmp/ios-traces/`**: Store all `.trace` bundles and `.xml` exports in `/tmp/ios-traces/` with timestamped and scenario-tagged filenames.
+7. **Protect conversation context budget**: Trace files and raw exported XML documents can be tens or hundreds of megabytes. Never dump raw `.trace` outputs, full call-trees, or unparsed Allocations XML into the agent conversation context. Always use the bundled Python scripts to stream, filter, rank, and summarize the data before reading.
+8. **Focus on primary bottlenecks**: Do not scatter micro-optimizations across dozens of innocent utility functions. Profile first to confirm the dominant contributor (e.g. redundant surface instances, high-frequency timer re-evaluations, unbuffered I/O) and focus optimization efforts exclusively on that root cause.
+9. **Never silently alter UI, visual effects, or core behavior**: If a performance bottleneck involves visual fidelity (such as blur/materials, frame animations, shadows, layout transitions) or essential software behavior:
+   - **Do not unilaterally remove or downgrade the visual feature.**
+   - **Formally ask the user for permission first** (using an interactive prompt or explicit chat message).
+   - **Clearly articulate the tradeoff**: Describe the visual change before and after, explain why the feature consumes resources, and present the concrete expected performance gain (e.g., "Disabling dynamic shadow and blur on card views will reduce GPU average impact from 1.8 to 0.2 and eliminate 120Hz ProMotion hitches").
 
 ---
 
@@ -280,3 +286,12 @@ Instruments templates supported on iOS via `scripts/run_trace.sh` and headless `
 ### Real-Time Audio & Background Execution
 - **Audio Session interruptions**: Real-time audio rendering callbacks running on `AVAudioEngine` or RemoteIO unit must never perform heap allocation or file I/O.
 - **Background Mode**: If testing background audio or streaming, verify process behavior when transitions to background state occur (`UIApplication.didEnterBackgroundNotification`).
+
+### Heavy Surface Lifecycle & Coordinator Tokens
+- **Strict surface mutual exclusion**: When an app alternates between standard view controllers and full-screen presentations of resource-heavy components (such as `WKWebView`, Metal views, or camera previews), ensure only the currently active surface retains working instances.
+- **Host attachment tokens**: In SwiftUI / UIKit bridging (`UIViewRepresentable`), layout churn can cause a dismantled coordinator's cleanup callback to execute after a new coordinator has already attached the view. Tag attachments with unique UUID tokens so stale teardowns cannot invalidate active successors.
+- **Clean teardown over blank navigation**: Simply setting web views to `about:blank` does not immediately release script runtimes or process memory. Explicitly cancel pending tasks, remove message handlers/delegates, and release references so helper processes can terminate.
+
+### SwiftUI State Boundary & High-Frequency Clocks
+- **Decouple high-frequency timers from root view trees**: If playback clocks, animations, or sensor updates tick at 4Hz to 60Hz, avoid binding that ticking state at high levels of the SwiftUI view hierarchy. Doing so causes the entire view tree to re-evaluate on every tick.
+- **Leaf-level observation**: Split state models into a `stableProjection` (title, metadata, controls that rarely change) and a narrow `liveProjection` (current progress, audio meters). Only let terminal leaf controls observe the high-frequency tick.

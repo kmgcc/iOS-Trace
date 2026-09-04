@@ -59,6 +59,18 @@ Before making changes or running traces, agents should align on targets with the
 
 ---
 
+## Non-Negotiable Operational Rules for Agents
+
+1. **Never Silently Alter UI, Visual Fidelity, or Core Behavior**:
+   - If an optimization impacts visual aesthetics (blur materials, shadows, frame rates, complex animations) or critical application workflows, **agents must not unilaterally remove them**.
+   - The agent must ask the user for explicit permission, presenting the exact before/after visual difference and the quantified expected gain (e.g. "Disabling blur reduces GPU impact from 1.8 to 0.2 and prevents 120Hz ProMotion hitches").
+2. **Focus on Dominant Bottlenecks**:
+   - Avoid scattered micro-optimizations across innocent utilities. Always isolate the primary driver (e.g. redundant surface instances, unthrottled timer re-evaluations, unbuffered I/O) before modifying code.
+3. **Strict Context Window Budgeting**:
+   - Raw `.trace` archives and unparsed XML tables can reach hundreds of megabytes and will crash agent context windows. Agents must never dump raw traces or unparsed tables into the chat. Always filter, stream, and rank data using the bundled Python scripts.
+
+---
+
 ## Prerequisites and Scope
 
 Read these requirements and constraints before deploying or invoking this skill:
