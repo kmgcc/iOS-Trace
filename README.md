@@ -1,6 +1,6 @@
 # iOS-Trace
 
-[English](README.md) | [中文](README_zh.md)
+[中文](README.md) | [English](README_en.md)
 
 [![Agent Skills Open Standard](https://img.shields.io/badge/Agent_Skills-Open_Standard-blueviolet.svg)](https://agentskills.io)
 [![Install](https://img.shields.io/badge/Install-npx_skills_add-000000.svg)](https://skills.sh/kmgcc/iOS-Trace)
@@ -9,105 +9,105 @@
 [![Python](https://img.shields.io/badge/Python-3.8%2B_(Zero_Deps)-3776AB.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> Looking for macOS desktop application profiling? See [macOS-Trace](https://github.com/kmgcc/macOS-Trace).
+> 如需对 macOS 桌面原生应用进行性能分析，请参考 [macOS-Trace](https://github.com/kmgcc/macOS-Trace)。
 
-Autonomous, closed-loop application performance optimization engine for **iOS and iPadOS applications** running on physical iPhone/iPad devices and iOS Simulators using `xctrace` and Xcode Instruments.
+基于 `xctrace` 与 Xcode Instruments 的 **iOS 及 iPadOS 应用**（真机与模拟器）自主闭环性能优化引擎。
 
-Designed for AI coding agents (Claude Code, OpenAI Codex, Cursor, Google Antigravity, GitHub Copilot) and iOS engineers. It completely eliminates manual Instruments GUI interaction. From a single prompt, an agent can align on optimization goals with the user, capture headless diagnostic traces, implement targeted code fixes, and re-test with differential benchmarking across multiple iterations until the user's requirements are met.
+专为 **AI 编码 Agent**（Claude Code、OpenAI Codex、Cursor、Google Antigravity、GitHub Copilot）及 **iOS 移动端研发工程师** 设计。核心目标是**彻底摆脱繁琐的 Instruments 图形界面**。用户只需下达一句话指令，Agent 即可自主完成：前期目标对齐（弹窗问询）、无头采样诊断、定位性能瓶颈、精准修改源码、重新量化测试复盘，并在未达标时自主迭代，直至满足性能目标。
 
 ---
 
-## The Autonomous Optimization Loop
+## 自主优化闭环流程
 
 ```text
 +-------------------------------------------------------------------------+
-|                  The Autonomous Optimization Loop                        |
+|                         自主性能优化闭环流程                             |
 |                                                                         |
-|  1. Goal Alignment ──> 2. Diagnostic Trace ──> 3. Targeted Code Fix     |
+|  1. 目标对齐 ──────> 2. 无头采样诊断 ─────> 3. 精准代码优化              |
 |         ^                                                 │             |
 |         │                                                 ▼             |
-|         └────── Iterate if Target Not Met <── 4. Re-test Verification   |
+|         └────── 未达标则开启下一轮迭代 <─── 4. 复盘量化重测              |
 +-------------------------------------------------------------------------+
 ```
 
-1. **Goal Alignment**: The agent queries the user upfront (via interactive questionnaire modal if available, or direct chat) with concrete recommended thresholds.
-2. **Diagnostic Profiling**: Headless trace capture under idle baseline and active workload on device/simulator to isolate hot call-frames, allocation spikes, and radio tails.
-3. **Code Modification**: The agent implements surgical, source-level optimizations directly in the codebase.
-4. **Re-Test Verification**: Automated re-profiling under identical conditions to compute empirical Before vs After deltas.
-5. **Iteration Gate**: If the user's targets are met, deliver the final report; if not, initiate the next optimization round automatically.
+1. **目标对齐（Upfront Questionnaire）**：Agent 在动手前先通过交互式问询组件（或直接在对话中）向用户确认具体性能指标期望与推荐建议值。
+2. **无头采样诊断**：自动化采集静置基线与业务负载样本，精准定位热点调用栈、瞬时内存尖峰或射频唤醒消耗。
+3. **精准代码优化**：Agent 根据诊断结果直接在移动端源码中实施针对性修复。
+4. **复盘量化重测**：在完全一致的设备环境下自动化重新采样，生成 Before vs After 差值对比。
+5. **决策门禁（Gate）**：指标达标则输出最终复盘报告并交付；未达标则自动锁定次级瓶颈并开启下一轮迭代循环。
 
 ---
 
-## Upfront Goal Alignment (Pre-Flight Questionnaire)
+## 优化前目标对齐（问询协议与建议值）
 
-Before making changes or running traces, agents should align on targets with the user:
+在采集 Trace 或修改代码前，Agent 必须先与用户对齐优化目标与验收标准：
 
-- **Interactive Modal / Components**: If the agent platform provides an interactive modal or prompt tool (e.g. `ask_question`), invoke it to present selectable options. Otherwise, ask directly in conversation.
-- **Recommended Threshold Presets**:
-  - **Battery & CPU**:
-    - *Idle Baseline Target*: < 15 M/s instructions, CPU Impact < 0.3.
-    - *Active Workload Target*: < 80 M/s instructions (or reduce current CPU by 30% - 50%).
-  - **Memory & Jetsam Ceilings**:
-    - *Maximum Resident RAM*: Cap at < 150 MB (standard utilities) or < 300 MB (rich media apps).
-    - *Allocation Rate*: < 400 events/sec during steady-state execution.
-    - *Leaks*: 0 persistent leaks.
-  - **UI Smoothness & Hitches**:
-    - *Hitch Ratio*: < 5.0 ms/s (acceptable), < 1.0 ms/s (fluid / 120Hz ProMotion grade).
-  - **Cold Launch Time**:
-    - *Time to First Frame*: < 400 ms (excellent), < 800 ms (acceptable).
-  - **Network & Radio Efficiency**:
-    - *Radio Standby Overhead*: Batch periodic pings into single burst requests to avoid cellular/WiFi radio tails.
-
----
-
-## Non-Negotiable Operational Rules for Agents
-
-1. **Never Silently Alter UI, Visual Fidelity, or Core Behavior**:
-   - If an optimization impacts visual aesthetics (blur materials, shadows, frame rates, complex animations) or critical application workflows, **agents must not unilaterally remove them**.
-   - The agent must ask the user for explicit permission, presenting the exact before/after visual difference and the quantified expected gain (e.g. "Disabling blur reduces GPU impact from 1.8 to 0.2 and prevents 120Hz ProMotion hitches").
-2. **Focus on Dominant Bottlenecks**:
-   - Avoid scattered micro-optimizations across innocent utilities. Always isolate the primary driver (e.g. redundant surface instances, unthrottled timer re-evaluations, unbuffered I/O) before modifying code.
-3. **Strict Context Window Budgeting**:
-   - Raw `.trace` archives and unparsed XML tables can reach hundreds of megabytes and will crash agent context windows. Agents must never dump raw traces or unparsed tables into the chat. Always filter, stream, and rank data using the bundled Python scripts.
-4. **Clean Up Recording Artifacts**:
-   - Every recording creates several-GB transient kernel traces (`instruments*.ktrace`) and an Instruments CLI cache in the system temp folder. `scripts/run_trace.sh` removes them automatically on exit. Once the user accepts the final report, delete the accumulated `.trace` bundles in `/tmp/ios-traces/` (unless the user asks to keep them). Never leave hundreds of GB of temporary recording data behind.
+- **交互组件调用**：若 Agent 平台提供交互式问询组件（如 `ask_question`、选项卡或弹窗），优先调用组件渲染选项；若无此类工具，则在对话中以结构化选项向用户提问。
+- **推荐参考指标预设**：
+  - **电池与 CPU 负载**：
+    - *静置基线目标*：指令吞吐率 < 15 M/s，CPU 能耗指数 < 0.3。
+    - *业务活跃态目标*：指令吞吐率 < 80 M/s（或当前 CPU 整体下降 30% - 50%）。
+  - **内存与 Jetsam 阈值**：
+    - *常驻内存上限（Resident RAM）*：轻量工具类 < 150 MB，富媒体/复杂交互类 < 300 MB。
+    - *内存分配速率*：稳态交互下 < 400 events/sec。
+    - *内存泄漏*：严格 0 持续泄漏。
+  - **UI 流畅度与掉帧**：
+    - *顿挫比（Hitch Ratio）*：< 5.0 ms/s（良好），< 1.0 ms/s（丝滑 / 120Hz ProMotion 极佳）。
+  - **冷启动耗时**：
+    - *首帧渲染耗时*：< 400 ms（极佳），< 800 ms（良好）。
+  - **网络与基带射频开销**：
+    - *射频尾部能耗（Radio Tail）*：将周期性独立零散请求合并为单次批量传输，减少基带高功耗唤醒时长。
 
 ---
 
-## Prerequisites and Scope
+## Agent 执行铁律（红线规则）
 
-Read these requirements and constraints before deploying or invoking this skill:
-
-### Supported Targets
-- **iOS & iPadOS Devices Only**: Designed specifically for applications running on physical iPhone/iPad hardware connected via USB or local network, as well as local iOS Simulators.
-- **Looking for macOS desktop software?**: Use [macOS-Trace](https://github.com/kmgcc/macOS-Trace).
-
-### Host System and Tooling
-- **Host System**: macOS 12.0 (Monterey) or later with full Xcode or Xcode Command Line Tools (`xcrun xctrace`).
-- **Device Connection**:
-  - The physical iPhone or iPad must be unlocked and trusted by the host Mac.
-  - The device must appear under `== Devices ==` when running `xcrun xctrace list devices` (not under `== Devices Offline ==`).
-  - Auto-Lock should be set to "Never" or kept awake during recordings to prevent iOS from suspending background processes.
-- **Python**: Python 3.8+ on the host Mac (uses standard library only; zero external pip dependencies).
-- **Process Entitlements**: Debug builds or developer-signed builds with `com.apple.security.get-task-allow` entitlement are required for process attaching (`--attach <PID>`).
+1. **涉及 UI/视觉效果或软件核心行为时，绝不可擅自优化掉**：
+   - 若某项优化涉及视觉渲染（如毛玻璃材质、动态阴影、平滑动画、转场效果）或应用关键逻辑，**严禁 Agent 自作主张直接剔除或降级**。
+   - **必须向用户正式询问是否允许**，并明确说明修改前后的视觉变化、占用资源的原因以及预期的性能收益（例如：“移除列表卡片上的动态阴影和毛玻璃预计可将 GPU 平均负载从 1.8 降至 0.2，并彻底消除 120Hz ProMotion 掉帧顿挫”）。
+2. **优化务必抓主要矛盾（抓重点）**：
+   - 严禁在几十个无辜的底层工具函数上做无意义的微优化。必须先通过诊断定位出真正的第一耗能根因（如多 surface 重复实例化、高频定时器全局重算、未合并的频繁射频唤醒），并将精力集中在主要矛盾上。
+3. **严格控制上下文预算，谨慎读取结果数据**：
+   - 原始 `.trace` 文件与导出的未解析 XML 动辄几十上百兆，直接读取或转储将**瞬间撑爆 Agent 上下文**导致任务中断。必须始终通过内置 Python 脚本进行流式提取、Top 排序与差异摘要后再行分析。
+4. **及时清理录制产生的临时文件**：
+   - 每次录制都会在系统临时目录写入数 GB 的瞬时内核追踪文件（`instruments*.ktrace`）与 Instruments CLI 缓存。`scripts/run_trace.sh` 会在退出时自动清理。用户确认最终优化报告后，还应删除 `/tmp/ios-traces/` 下累计的 `.trace` 包（用户明确要求保留的除外）。严禁把上百 GB 的临时录制数据留在磁盘上。
 
 ---
 
-## Installation
+## 前置条件与适用范围
 
-### Recommended: one command with the skills CLI
+在部署或调用本 Skill 前，请仔细阅读以下系统要求与约束：
+
+### 支持的目标类型
+- **仅支持 iOS 与 iPadOS 应用**：专门针对运行在通过 USB 或局域网连接的物理 iPhone/iPad 真机，以及本地运行的 iOS 模拟器。
+- **macOS 桌面软件用户**：请前往使用专为 macOS 桌面端优化的 [macOS-Trace](https://github.com/kmgcc/macOS-Trace)。
+
+### 宿主系统与工具链要求
+- **宿主系统**：macOS 12.0 (Monterey) 或更高版本，必须安装完整 Xcode 或包含 `xcrun xctrace` 的 Xcode 命令行工具。
+- **真机连接准备**：
+  - 物理 iPhone 或 iPad 必须处于**解锁状态**，且已在弹窗中选择“信任此电脑”。
+  - 运行 `xcrun xctrace list devices` 时，目标设备必须出现在 `== Devices ==` 列表中，**绝不能处于 `== Devices Offline ==` 离线状态**。
+  - 建议将真机的“自动锁定”设置为“永不”，或在录制期间保持屏幕常亮，防止 iOS 锁屏导致前台应用转入后台冻结或挂起。
+- **Python 环境**：Mac 宿主机需安装 Python 3.8+（系统自带）。所有分析脚本均**仅依赖标准库**（`re`、`sys`、`os`、`xml.etree.ElementTree`、`collections`），零第三方 pip 依赖。
+- **签名权限要求**：Debug 构建或包含 `com.apple.security.get-task-allow` 签名的开发版应用支持通过 `--attach <PID>` 附加采样。
+
+---
+
+## 安装方式
+
+### 推荐：skills CLI 一条命令安装
 
 ```bash
 npx skills add kmgcc/iOS-Trace
 ```
 
-The `skills` CLI detects installed agents (Claude Code, OpenAI Codex, Cursor, GitHub Copilot, Gemini CLI, Google Antigravity, OpenCode, Windsurf, and 70+ more) and links the skill into the correct directory for each. Add `-g` to install globally for all projects, or `-a claude-code -g` to target a single agent.
+CLI 会自动探测本机已安装的 Agent（Claude Code、OpenAI Codex、Cursor、GitHub Copilot、Gemini CLI、Google Antigravity、OpenCode、Windsurf 等 70+），并把技能链接到每个 Agent 的正确目录。加 `-g` 安装到用户级全局（所有项目可用），或 `-a claude-code -g` 只装给指定 Agent。
 
-### Manual installation (per agent)
+### 手动安装（按 Agent 分目录）
 
-Each agent reads skills from its own directory. The skill directory name must be `ios-trace`, matching the `name` field in `SKILL.md`:
+各 Agent 读取技能的目录不同，技能目录名必须是 `ios-trace`（与 SKILL.md 的 `name` 字段一致）：
 
-| Agent | Project scope | Global scope (all projects) |
+| Agent | 项目级 | 用户级全局 |
 | :--- | :--- | :--- |
 | Claude Code | `.claude/skills/ios-trace` | `~/.claude/skills/ios-trace` |
 | OpenAI Codex | `.agents/skills/ios-trace` | `~/.codex/skills/ios-trace` |
@@ -119,95 +119,99 @@ Each agent reads skills from its own directory. The skill directory name must be
 | Amp / Cline / Warp / Zed | `.agents/skills/ios-trace` | `~/.agents/skills/ios-trace` |
 
 ```bash
-# Clone globally for Claude Code
+# 为 Claude Code 装到用户级全局
 git clone https://github.com/kmgcc/iOS-Trace.git ~/.claude/skills/ios-trace
 
-# Or pin it inside an iOS repository as a versioned git submodule (Claude Code project scope)
+# 或作为 git submodule 固定在 iOS 工程内（Claude Code 项目级，便于版本跟踪）
 git submodule add https://github.com/kmgcc/iOS-Trace.git .claude/skills/ios-trace
 ```
 
-### Complete Optimization Run Example
+### 完整闭环优化运行示例
 
 ```bash
 SKILL_DIR="$HOME/.claude/skills/ios-trace"
 
-# 1. Confirm the iPhone/iPad is online and unlocked (optional; the runner auto-detects it)
+# 1. 确认真机在线且已解锁（可选检查；runner 会自动探测第一台已连接的 iPhone/iPad）
 xcrun xctrace list devices
 
-# 2. Record 60s idle baseline (device unlocked, app foregrounded)
+# 2. 采集 60 秒静置基线（应用在前台，无业务负载）
 "$SKILL_DIR/scripts/run_trace.sh" --bundle-id "com.example.MyApp" --template power --duration 60s --label "01-baseline"
 
-# 3. Trigger active workload in app, then record pre-opt active state
+# 3. 在真机上触发目标功能，采集 60 秒优化前高负载态
 "$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template power --duration 60s --label "02-pre-opt"
 
-# 4. Implement code fixes, rebuild and deploy to device, then record post-opt active state
+# 4. 实施源码修改、重新编译并安装到设备后，采集优化后高负载态
 "$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template power --duration 60s --label "03-post-opt"
 
-# 5. Compare Pre-Opt vs Post-Opt against Baseline
+# 5. 执行多轮客观差值对比
 python3 "$SKILL_DIR/scripts/compare_elements.py" \
-  /tmp/ios-traces/01-baseline-power.xml:"Idle Baseline" \
-  /tmp/ios-traces/02-pre-opt-power.xml:"Active Pre-Opt" \
-  /tmp/ios-traces/03-post-opt-power.xml:"Active Post-Opt"
+  /tmp/ios-traces/01-baseline-power.xml:"静置基线" \
+  /tmp/ios-traces/02-pre-opt-power.xml:"优化前业务态" \
+  /tmp/ios-traces/03-post-opt-power.xml:"优化后业务态"
 ```
 
 ---
 
-## Quick Start Example
+## 快速上手示例
 
-Running the comparison produces an empirical differential report:
+运行差值对比脚本将输出如下客观量化报告（含移动端独有的网络收发统计）：
 
 ```text
 Scenario                 Sec  CPU Avg  CPU Max  Display  GPU Avg  Total Instr    Instr M/s   WiFi Tx/Rx
 =========================================================================================================
-1. Idle Baseline          60     0.12     0.60     0.05     0.00        0.85G         14.2   0.0/0.0MB
-2. Active Workload        60     2.40     4.80     1.10     1.80       15.60G        260.0  14.2/1.8MB
+1. 静置基线               60     0.12     0.60     0.05     0.00        0.85G         14.2   0.0/0.0MB
+2. 业务负载               60     2.40     4.80     1.10     1.80       15.60G        260.0  14.2/1.8MB
 ---------------------------------------------------------------------------------------------------------
-Differential vs Baseline [1. Idle Baseline]:
-  2. Active Workload        +245.8 M/s instructions, CPU Avg Delta +2.28, WiFi Tx Delta +14.20MB
+Differential vs Baseline [1. 静置基线]:
+  2. 业务负载               +245.8 M/s instructions, CPU Avg Delta +2.28, WiFi Tx Delta +14.20MB
 ```
 
 ---
 
-## Included Tooling
+## 内置工具与脚本
 
-All scripts require Python 3.8+ and use the standard library only (`re`, `sys`, `os`, `xml.etree.ElementTree`, `collections`).
+所有脚本要求 Python 3.8+，**仅使用标准库**（`re`、`sys`、`os`、`xml.etree.ElementTree`、`collections`），零任何第三方依赖。
 
-| Script | Function | Usage |
+| 脚本 | 功能说明 | 常用命令示例 |
 | :--- | :--- | :--- |
-| `scripts/run_trace.sh` | CLI runner: device discovery, record, export, parse, and automatic temp-artifact cleanup | `./scripts/run_trace.sh --bundle-id com.example.MyApp --template power` |
-| `scripts/compare_elements.py` | Multi-run comparison table with CPU, GPU, and WiFi/Cellular delta | `python3 scripts/compare_elements.py base.xml active.xml` |
-| `scripts/parse_power.py` | Single-run breakdown of CPU, GPU, Display, and Network throughput | `python3 scripts/parse_power.py run-power.xml "Workload"` |
-| `scripts/top_categories.py` | Allocations ranking by event rate, transient, and persistent bytes | `python3 scripts/top_categories.py alloc.xml 60 10.0` |
+| `scripts/run_trace.sh` | 移动端终端入口：支持真机探测、启动 App、XML 导出与解析，退出时自动清理临时录制文件 | `./scripts/run_trace.sh --bundle-id com.example.MyApp --template power` |
+| `scripts/compare_elements.py` | 多场景对比表生成，包含 CPU、GPU 与 WiFi/蜂窝网络吞吐差值 | `python3 scripts/compare_elements.py base.xml active.xml` |
+| `scripts/parse_power.py` | 单次 Power Profiler 导出的功耗、GPU、指令速率及网络数据深度解析 | `python3 scripts/parse_power.py run-power.xml "测试场景"` |
+| `scripts/top_categories.py` | Allocations 堆内存高频分配速率与常驻/瞬时内存分析 | `python3 scripts/top_categories.py alloc.xml 60 10.0` |
 
 ---
 
-## Instruments Templates
+## 常用 Instruments 模板
 
-| Template | Shorthand | Target Metrics & Primary Use Case |
+| 模板名称 | 简写参数 | 核心量化指标与适用场景 |
 | :--- | :--- | :--- |
-| `Power Profiler` | `power` | Instructions/sec (M/s), CPU/GPU/Display/WiFi/Cellular energy impacts (`ProcessSubsystemPowerImpact`). Comprehensive battery drain and A/B testing. |
-| `Time Profiler` | `time` | Thread CPU weights, call stack hotspots, main-thread blocking methods. |
-| `Animation Hitches` | `hitches` | ProMotion 120Hz scrolling stutter, hitch duration (ms), frame drop ratios. |
-| `SwiftUI` | `swiftui` | View body evaluations, State invalidation counts, view update frequency. |
-| `Allocations` | `alloc` | Heap allocation rates, transient memory spikes, category event rates (`all-allocations-summary`). |
-| `Leaks` | `leaks` | Retained memory leaks outliving parent lifecycle, retain cycles. |
-| `Network` | `network` | TCP/UDP connections, DNS latency, packets sent/received, radio state overhead. |
-| `App Launch` | `launch` | Time to first frame, `dyld` loading time, static initializers, runloop setup. |
-| `Metal System Trace` | `metal` | GPU encoder time, vertex/fragment shader durations, frame latency. |
+| `Power Profiler` | `power` | 每秒指令吞吐（M/s）、CPU/GPU/Display/WiFi/蜂窝能耗 Impact。整机发热、掉电排查与 A/B 对比首选。 |
+| `Time Profiler` | `time` | 各线程 CPU 权重占比、调用栈热点（Call-tree）、主线程卡顿耗时。 |
+| `Animation Hitches` | `hitches` | ProMotion 120Hz 滚动掉帧、卡顿时长（ms）、Hitch Ratio（ms/s）。区分 Commit 与 Render 延迟。 |
+| `SwiftUI` | `swiftui` | View Body 求值次数、State 变更计数、属性修改频次。定位级联重算。 |
+| `Allocations` | `alloc` | 堆内存分配事件速率、瞬时内存波峰、分类事件频次（`all-allocations-summary`）。 |
+| `Leaks` | `leaks` | 失去父级引用的孤立内存泄漏、循环引用（Retain Cycles）。 |
+| `Network` | `network` | TCP/UDP 连接延迟、DNS 耗时、收发包体积、射频休眠状态。 |
+| `App Launch` | `launch` | 首帧渲染耗时、`dyld` 动态库加载时间、静态初始化耗时。应用冷启动优化。 |
+| `Metal System Trace` | `metal` | GPU Encoder 执行耗时、片元/顶点着色器负载、帧边界渲染延迟。 |
 
 ---
 
-## Subsystem Optimization Notes
+## 移动端核心子系统调优实战
 
-Detailed implementation guidance is provided in [SKILL.md](SKILL.md):
+完整实操规则详见 [SKILL.md](SKILL.md)：
 
-1. **Battery & Radio Energy**: Batching periodic network requests to avoid cellular/WiFi radio tails; minimizing wake-locks and background audio/location tasks.
-2. **ProMotion 120Hz Displays**: Honoring the 8.33ms frame budget; isolating Commit Hitches (main-thread layout delays) from Render Hitches (GPU compositing bottlenecks).
-3. **Image Downsampling & Jetsam Ceilings**: Preventing high-resolution raw bitmaps from exhausting the strict mobile memory ceiling using `CGImageSourceCreateThumbnailAtIndex`.
-4. **Real-Time Audio Session**: Zero heap allocations in CoreAudio/AVAudioEngine render callbacks; managing audio interruptions and background transitions.
+1. **电池与蜂窝/WiFi 射频管理**：
+   - 警惕射频尾随功耗（Radio Tails）：移动端网络芯片从休眠唤醒到高能耗状态后，传输完毕仍会维持数秒高功耗状态。严禁每隔几秒发起碎片化网络 Ping，应将请求聚合（Batching）后突发传输。
+2. **ProMotion 120Hz 高刷屏与卡顿分类**：
+   - 严格遵循 8.33ms 单帧预算：精准区分 Commit 阶段超时（主线程布局或视图树构造过慢）与 Render 阶段超时（GPU 图层阴影/离屏渲染过载）。
+3. **图像降采样与 iOS Jetsam 内存防线**：
+   - iOS 拥有严格的 Jetsam 物理内存红线（超出即被系统强杀）。高清原始图直接解码为 `UIImage` 会瞬时暴涨内存，必须使用 `CGImageSourceCreateThumbnailAtIndex` 做解码期降采样。
+4. **实时音频 Session 与后台执行**：
+   - 音频实时回调内严禁堆内存分配与加锁；正确处理音频路由中断（Interruption）与后台场景切换。
 
 ---
 
-## License
+## 开源协议
 
-MIT License. See [LICENSE](LICENSE) for details.
+基于 [MIT License](LICENSE) 开源。
