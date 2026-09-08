@@ -1,8 +1,8 @@
 # Mobile Subsystem Optimization Notes (iOS)
 
 Load this file when the profile attributes a bottleneck to a specific subsystem
-(battery/radio, ProMotion displays, images/memory, or real-time audio). These are
-battle-tested optimization patterns for iOS.
+(battery/radio, ProMotion displays, media & large-asset decoding, or real-time
+audio). These are battle-tested optimization patterns for iOS.
 
 ## Battery & Radio Energy Management
 
@@ -15,12 +15,12 @@ battle-tested optimization patterns for iOS.
 - **Hitches taxonomy**:
   - *Commit Hitches*: Main thread took too long to build view hierarchy or compute geometry before committing to render server.
   - *Render Hitches*: GPU took too long rendering layers (complex shadows, blur effects, offscreen passes).
-- **Diagnosis**: Use `Animation Hitches` with `--duration 30s` during scrolling interactions.
+- **Diagnosis**: Use `Animation Hitches` with `--duration 30s` during UI interactions (scrolling, transitions, gestures).
 
-## Image Downsampling and Low-Memory Warnings
+## Media & Large-Asset Decoding and Memory Spikes
 
-- **Memory spikes on iOS**: iOS jetsam kills background or foreground apps exceeding strict memory ceilings (often ~1.5GB to 2GB on mobile). Decoding raw photos or large bitmaps directly into `UIImage` inflates the heap by 4 bytes per pixel uncompressed.
-- **Downsampling**: Always downsample images at decode time using `CGImageSourceCreateThumbnailAtIndex` with `kCGImageSourceThumbnailMaxPixelSize`.
+- **Memory spikes on iOS**: iOS jetsam kills background or foreground apps exceeding strict memory ceilings (often ~1.5GB to 2GB on mobile). Materializing large assets at full resolution inflates the heap: decoding raw photos or big bitmaps into `UIImage` costs 4 bytes per pixel uncompressed, decoding video frames into pixel buffers at source resolution is far larger, and loading whole PDF pages or documents into memory is equally wasteful.
+- **Decode at display size**: Downsample images at decode time using `CGImageSourceCreateThumbnailAtIndex` with `kCGImageSourceThumbnailMaxPixelSize`, decode video frames at playback resolution, render PDF pages on demand, and stream/parse large documents incrementally instead of buffering them whole.
 
 ## Real-Time Audio & Background Execution
 

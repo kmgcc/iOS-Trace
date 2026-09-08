@@ -86,14 +86,14 @@ python3 "$SKILL_DIR/scripts/compare_elements.py" \
   /tmp/ios-traces/02-pre-opt-power.xml:"Active Pre-Opt"
 ```
 
-Attribute the bottleneck with specialized templates: `--template time` for hot call-trees, `alloc` with `top_categories.py` for allocation thrashing, `hitches` during scrolling for render vs commit delays, `network` for unbatched radio wakeups. See `references/templates.md` for the full template reference.
+Attribute the bottleneck with specialized templates: `--template time` for hot call-trees, `alloc` with `top_categories.py` for allocation thrashing, `hitches` during UI interactions (scrolling, transitions, gestures) for render vs commit delays, `network` for unbatched radio wakeups. See `references/templates.md` for the full template reference.
 
 > **If the target workload requires interaction or reproduction** (taps, scrolling, gestures) — on a physical device or simulator — **read `references/workload-reproduction.md` before recording** and decide which reproduction tier to use.
 
 ### Phase 3: Targeted Code Modification
 
 Apply minimal, surgical fixes based on findings:
-- **Memory spikes & Jetsam**: downsample images at decode time with `CGImageSourceCreateThumbnailAtIndex` instead of loading full-size `UIImage`.
+- **Memory spikes & Jetsam**: never materialize large assets at full resolution — downsample images at decode time (`CGImageSourceCreateThumbnailAtIndex`), decode video frames at playback size, render PDF pages on demand, and stream large documents instead of buffering them whole.
 - **ProMotion hitches**: remove complex shadows / offscreen blending; offload heavy layout calculations from the main thread.
 - **Radio energy overhead**: batch periodic network requests into unified payload bursts to eliminate radio tail standby power.
 - **Real-time audio**: zero heap allocations in CoreAudio render callbacks (`AVAudioEngine` / RemoteIO).
@@ -153,5 +153,5 @@ xcrun xctrace export --input /tmp/ios-traces/power.trace \
 ## Reference Documents (load on demand)
 
 - `references/templates.md` — Instruments template picker (which template for which bottleneck).
-- `references/subsystems.md` — per-subsystem optimization patterns (radio, ProMotion, images, audio).
+- `references/subsystems.md` — per-subsystem optimization patterns (radio, ProMotion, media decoding, audio).
 - `references/workload-reproduction.md` — **how to reproduce the workload (Tier 0–3), including simulator boundaries; mandatory read when interaction-based scenarios are being profiled.**

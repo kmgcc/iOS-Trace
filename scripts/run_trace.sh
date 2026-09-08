@@ -73,7 +73,7 @@ Examples:
   # 2. Launch app cold on device under Power Profiler:
   $(basename "$0") --device "00008140-000C54310E82801C" --bundle-id "com.example.MyApp" --template power
 
-  # 3. Profile UI animation hitches during scrolling on iOS Simulator:
+  # 3. Profile UI animation hitches during UI interactions on iOS Simulator:
   $(basename "$0") --device "iPhone 17 Pro Max Simulator" --process "MyApp" --template hitches --duration 30s
 EOF
   exit 0
