@@ -63,6 +63,7 @@ Once targets are confirmed, proceed to Phase 2.
     ```bash
     find "${TMPDIR:-/tmp}" -maxdepth 1 -type f -name 'instruments*.ktrace' -delete 2>/dev/null || true
     ```
+11. **Resolve `SKILL_DIR` dynamically, never hardcode it**: the skill's install path varies by host and agent (Claude Code: `~/.claude/skills/ios-trace`; DSH: `~/.dsh/skills/ios-trace`; project scope: `<root>/.dsh/skills/ios-trace`). Locate it before calling bundled scripts, and reference scripts only via `"$SKILL_DIR/scripts/..."`.
 
 ---
 
@@ -72,7 +73,10 @@ Once targets are confirmed, proceed to Phase 2.
 
 ```bash
 BUNDLE_ID="com.example.MyApp"
-SKILL_DIR="$HOME/.claude/skills/ios-trace"
+
+# Locate the skill install dir (path varies by host/agent; see Rule 11)
+SKILL_DIR="$(ls -d "$HOME/.claude/skills/ios-trace" "$HOME/.dsh/skills/ios-trace" 2>/dev/null | head -1)"
+[ -n "$SKILL_DIR" ] || SKILL_DIR="$(find "$HOME" -maxdepth 6 \( -type d -o -type l \) -name ios-trace 2>/dev/null | head -1)"
 
 # Idle baseline (device unlocked, app foregrounded, workload paused)
 "$SKILL_DIR/scripts/run_trace.sh" --bundle-id "$BUNDLE_ID" --template power --duration 60s --label "01-baseline"
@@ -103,6 +107,7 @@ Rebuild and deploy to the device.
 ### Phase 4: Re-Test, Quantitative Review & Decision Gate
 
 ```bash
+# $SKILL_DIR = skill install dir, resolved as in Phase 2 (Rule 11)
 # Post-optimization active workload
 "$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template power --duration 60s --label "03-post-opt"
 
