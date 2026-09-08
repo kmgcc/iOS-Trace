@@ -49,8 +49,9 @@ Target Application (Required: choose one):
 
 Profiling Options:
   -t, --template <name>       Instruments template. Supports shorthands:
-                              power       -> 'Power Profiler' (default)
+                              power       -> 'Power Profiler' (default; iOS 26+ only)
                               time        -> 'Time Profiler'
+                              activity    -> 'Activity Monitor'
                               alloc       -> 'Allocations'
                               leaks       -> 'Leaks'
                               metal       -> 'Metal System Trace'
@@ -66,6 +67,13 @@ Profiling Options:
   --label <text>              Custom label for run output (default: bundle ID or process name)
   --no-analyze                Skip automatic XML export and Python analysis
 
+Notes:
+  - Power Profiler requires the device to run iOS 26 or newer. On older iOS,
+    use --template time (Time Profiler, hot call-trees) plus --template activity
+    (Activity Monitor, per-process CPU ms/s) as the energy/CPU fallback pair.
+  - Auto-analysis per template: power -> parse_power.py; time -> top_time.py;
+    activity -> activity_cpu.py; alloc -> top_categories.py.
+
 Examples:
   # 1. Profile running iOS app on physical device for 60s with Power Profiler:
   $(basename "$0") --device "00008140-000C54310E82801C" --process "MyApp" --template power --duration 60s
@@ -75,6 +83,10 @@ Examples:
 
   # 3. Profile UI animation hitches during UI interactions on iOS Simulator:
   $(basename "$0") --device "iPhone 17 Pro Max Simulator" --process "MyApp" --template hitches --duration 30s
+
+  # 4. iOS < 26 device: Time Profiler hot spots + Activity Monitor CPU fallback:
+  $(basename "$0") --device "00008140-000C54310E82801C" --bundle-id "com.example.MyApp" --template time --duration 60s
+  $(basename "$0") --device "00008140-000C54310E82801C" --process "MyApp" --template activity --duration 30s
 EOF
   exit 0
 }
@@ -102,6 +114,7 @@ while [[ $# -gt 0 ]]; do
       case "$2" in
         power)       TEMPLATE="Power Profiler" ;;
         time)        TEMPLATE="Time Profiler" ;;
+        activity)    TEMPLATE="Activity Monitor" ;;
         alloc)       TEMPLATE="Allocations" ;;
         leaks)       TEMPLATE="Leaks" ;;
         metal)       TEMPLATE="Metal System Trace" ;;
@@ -186,7 +199,19 @@ fi
 if [[ -n "$PROCESS_NAME" && -z "$ATTACH_PID" ]]; then
   echo "[INFO] Querying processes on device '$DEVICE' for '$PROCESS_NAME'..."
   if command -v xcrun &>/dev/null && xcrun devicectl help &>/dev/null; then
-    FOUND_PID=$(xcrun devicectl device info processes --device "$DEVICE" 2>/dev/null | awk -v name="$PROCESS_NAME" '$0 ~ name {print $1; exit}' || true)
+    # Prefer the app's main executable (path ends with '<Name>.app/<Name>') over
+    # extensions/widgets (e.g. 'VioRelayWidgets'). The main process path looks like
+    # '.../VioRelay.app/VioRelay'; extensions end in '.appex/<Name>'.
+    FOUND_PID=$(xcrun devicectl device info processes --device "$DEVICE" 2>/dev/null \
+      | awk -v name="$PROCESS_NAME" \
+        'BEGIN{pick=""; pickp=""}
+         $0 ~ name {
+           p=$1;
+           # Prefer a line whose path ends with '<name>.app/<name>' (main executable)
+           if (p ~ /^[0-9]+$/ && $0 ~ ("/" name "\\.app/" name "$")) { pick=p; pickp=$0; exit }
+           if (pick=="") { pick=p; pickp=$0 }
+         }
+         END{ if (pick!="") print pick }' || true)
     if [[ -n "$FOUND_PID" && "$FOUND_PID" =~ ^[0-9]+$ ]]; then
       ATTACH_PID="$FOUND_PID"
       echo "[INFO] Found PID $ATTACH_PID for process '$PROCESS_NAME'."
@@ -259,9 +284,51 @@ if [[ $AUTO_ANALYZE -eq 1 ]]; then
         echo "[WARN] ProcessSubsystemPowerImpact table not present or export returned non-zero."
       }
 
-    if [[ -f "$XML_FILE" && -s "$XML_FILE" ]]; then
+    if [[ -f "$XML_FILE" && -s "$XML_FILE" && $(grep -c '<row>' "$XML_FILE" 2>/dev/null || echo 0) -gt 0 ]]; then
       echo "[INFO] Parsing Power Impact metrics..."
       python3 "${SCRIPT_DIR}/parse_power.py" "$XML_FILE" "$LABEL"
+    else
+      echo "[WARN] Power Profiler produced no data rows. This template requires iOS 26+."
+      echo "[HINT] On iOS < 26, use --template time (Time Profiler, hot call-trees) and"
+      echo "      --template activity (Activity Monitor, per-process CPU ms/s) instead."
+    fi
+
+  elif [[ "$TEMPLATE" == "Time Profiler" ]]; then
+    XML_FILE="${OUTPUT_DIR}/${LABEL}-${TIMESTAMP}-time.xml"
+    echo "[INFO] Exporting time-profile table to XML..."
+    xcrun xctrace export \
+      --input "$TRACE_FILE" \
+      --xpath "/trace-toc/run[@number='1']/data/table[@schema='time-profile']" \
+      > "$XML_FILE" 2>/dev/null || {
+        echo "[WARN] time-profile table not present or export returned non-zero."
+      }
+
+    if [[ -f "$XML_FILE" && -s "$XML_FILE" && $(grep -c '<row>' "$XML_FILE" 2>/dev/null || echo 0) -gt 0 ]]; then
+      echo "[INFO] Parsing top CPU functions (top 25, leaf-attributed)..."
+      python3 "${SCRIPT_DIR}/top_time.py" "$XML_FILE" 25 --leaf
+    else
+      echo "[WARN] Time Profiler produced no data rows."
+    fi
+
+  elif [[ "$TEMPLATE" == "Activity Monitor" ]]; then
+    XML_FILE="${OUTPUT_DIR}/${LABEL}-${TIMESTAMP}-actmon.xml"
+    echo "[INFO] Exporting activity-monitor-process-live table to XML..."
+    xcrun xctrace export \
+      --input "$TRACE_FILE" \
+      --xpath "/trace-toc/run[@number='1']/data/table[@schema='activity-monitor-process-live']" \
+      > "$XML_FILE" 2>/dev/null || {
+        echo "[WARN] activity-monitor-process-live table not present or export returned non-zero."
+      }
+
+    if [[ -f "$XML_FILE" && -s "$XML_FILE" && $(grep -c '<row>' "$XML_FILE" 2>/dev/null || echo 0) -gt 0 ]]; then
+      echo "[INFO] Parsing per-process CPU (ms/s)..."
+      if [[ -n "$PROCESS_NAME" ]]; then
+        python3 "${SCRIPT_DIR}/activity_cpu.py" "$XML_FILE" "$PROCESS_NAME"
+      else
+        python3 "${SCRIPT_DIR}/activity_cpu.py" "$XML_FILE"
+      fi
+    else
+      echo "[WARN] Activity Monitor produced no data rows."
     fi
 
   elif [[ "$TEMPLATE" == "Allocations" ]]; then
@@ -277,9 +344,11 @@ if [[ $AUTO_ANALYZE -eq 1 ]]; then
     DURATION_SEC=$(echo "$DURATION" | sed 's/[^0-9]//g')
     if [[ -z "$DURATION_SEC" ]]; then DURATION_SEC=60; fi
 
-    if [[ -f "$XML_FILE" && -s "$XML_FILE" ]]; then
+    if [[ -f "$XML_FILE" && -s "$XML_FILE" && $(grep -c '<row>' "$XML_FILE" 2>/dev/null || echo 0) -gt 0 ]]; then
       echo "[INFO] Parsing allocation categories..."
       python3 "${SCRIPT_DIR}/top_categories.py" "$XML_FILE" "$DURATION_SEC" 10.0
+    else
+      echo "[WARN] Allocations produced no data rows."
     fi
   fi
 fi

@@ -8,7 +8,7 @@ and headless `xctrace`.
 
 | Template | Short Name | Target Metrics & Export Schema | Use Case |
 | :--- | :--- | :--- | :--- |
-| `Power Profiler` | `power` | Instructions/sec (M/s), CPU/GPU/Display/WiFi/Cellular energy impacts (`ProcessSubsystemPowerImpact`). | Comprehensive battery drain, thermal throttling, and A/B benchmarking. |
+| `Power Profiler` | `power` | Instructions/sec (M/s), CPU/GPU/Display/WiFi/Cellular energy impacts (`ProcessSubsystemPowerImpact`). | Comprehensive battery drain, thermal throttling, and A/B benchmarking. **iOS 26+ only** — on older iOS use `time` + `activity`. |
 | `Time Profiler` | `time` | CPU sample weights by thread, call-tree hotspots, main-thread blocking methods. | High CPU utilization, runaway worker threads, and hot function paths. |
 | `CPU Counters` | `counters` | IPC (instructions per cycle), L1/L2 cache misses, branch mispredictions. | Low-level computational and audio DSP algorithm performance bottlenecks. |
 

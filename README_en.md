@@ -66,12 +66,14 @@ python3 "$SKILL_DIR/scripts/compare_elements.py" /tmp/ios-traces/01-baseline-pow
 - **`references/templates.md`** — Instruments template picker (which template for which bottleneck).
 - **`references/subsystems.md`** — Per-subsystem optimization patterns (radio / ProMotion / media decoding / audio).
 - **`references/workload-reproduction.md`** — How to reproduce the workload (Tier 0–3, including simulator boundaries).
+- **`references/device-commands.md`** — Exact `devicectl`/`xctrace` device commands, iOS-version template limits, process matching, and script-copy rules.
 
 ---
 
 ## Limitations & Notes
 
 - **Energy / thermal / CPU Impact metrics (Power Profiler) are unsupported on the simulator** — a physical device is required.
+- **Power Profiler requires iOS 26+**; on older devices use the Time Profiler (hot call-trees) + Activity Monitor (per-process CPU ms/s) pair — see `references/device-commands.md`.
 - **Simulator xctrace recording can be unstable**; for batch multi-run traces, a device is more reliable.
 - Simulator results do not represent device power / thermal / GPU behavior; use it for CPU-hotspot and logic triage only.
 - Processes targeted with `--attach` must be debug/development-signed builds.

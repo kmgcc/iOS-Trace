@@ -66,12 +66,14 @@ python3 "$SKILL_DIR/scripts/compare_elements.py" /tmp/ios-traces/01-baseline-pow
 - **`references/templates.md`** — Instruments 模板选择（哪种瓶颈用哪个模板）。
 - **`references/subsystems.md`** — 各子系统调优知识（射频/ProMotion/媒体解码/音频）。
 - **`references/workload-reproduction.md`** — 负载如何复现（Tier 0–3，含模拟器边界）。
+- **`references/device-commands.md`** — 真机 `devicectl`/`xctrace` 命令、iOS 版本模板限制、进程匹配与脚本复制规则。
 
 ---
 
 ## 局限与注意点
 
 - **能耗/发热/CPU Impact 指标（Power Profiler）模拟器不支持**，必须真机。
+- **Power Profiler 要求 iOS 26+**；更低版本真机请用 Time Profiler（热点归属）+ Activity Monitor（每进程 CPU ms/s）组合，见 `references/device-commands.md`。
 - **模拟器 xctrace 录制可能不稳定**，批量跑多轮 trace 用真机更可靠。
 - 模拟器结果不能代表真机功耗/发热/GPU 行为；模拟器只适合 CPU 热点与逻辑问题的快速定位。
 - 需要 `--attach` 的进程必须为 debug/开发签名构建。

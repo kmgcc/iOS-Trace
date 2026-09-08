@@ -5,7 +5,7 @@ compatibility: "macOS 12+ host, iOS 15+ physical device or simulator, Xcode Comm
 license: MIT
 metadata:
   author: kmgcc
-  version: "1.3.0"
+  version: "1.4.0"
 ---
 
 # iOS-Trace: Autonomous Application Performance Optimization
@@ -54,7 +54,7 @@ Once targets are confirmed, proceed to Phase 2.
 2. **Prevent screen lock/backgrounding**: if the device locks or returns to home, iOS suspends the process and measurements are invalid. Keep the app foregrounded.
 3. **Establish a baseline first**: always capture an idle baseline before the active workload; compute `Delta = Active - Baseline`.
 4. **Use equal test parameters**: identical durations (default 60s), battery states, and input data across runs.
-5. **Zero third-party Python dependencies**: bundled scripts (`compare_elements.py`, `parse_power.py`, `top_categories.py`) use the standard library only.
+5. **Zero third-party Python dependencies**: bundled scripts (`compare_elements.py`, `parse_power.py`, `top_categories.py`, `top_time.py`, `activity_cpu.py`, `compare_cpu.py`) use the standard library only.
 6. **Save outputs to `/tmp/ios-traces/`**: timestamped, scenario-tagged filenames.
 7. **Protect context budget**: never dump raw `.trace` bundles, call-trees, or unparsed XML into the conversation — they can be hundreds of MB. Always stream/filter/rank via the bundled scripts before reading.
 8. **Focus on primary bottlenecks**: profile first to confirm the dominant contributor; don't scatter micro-optimizations across innocent utilities.
@@ -64,6 +64,8 @@ Once targets are confirmed, proceed to Phase 2.
     find "${TMPDIR:-/tmp}" -maxdepth 1 -type f -name 'instruments*.ktrace' -delete 2>/dev/null || true
     ```
 11. **Resolve `SKILL_DIR` dynamically, never hardcode it**: the skill's install path varies by host and agent (Claude Code: `~/.claude/skills/ios-trace`; DSH: `~/.dsh/skills/ios-trace`; project scope: `<root>/.dsh/skills/ios-trace`). Locate it before calling bundled scripts, and reference scripts only via `"$SKILL_DIR/scripts/..."`.
+12. **Never edit files inside the skill directory**: if you need to adapt a bundled script, copy it to a temp directory first (e.g. `/tmp/my-trace-tools/`), modify the copy, and run the copy. Keep the originals untouched so every run sees the same baseline.
+13. **Check the device iOS version before choosing Power Profiler**: `Power Profiler` requires **iOS 26+**. On older devices use `--template time` (hot call-trees) + `--template activity` (per-process CPU ms/s) as the fallback pair, and never invent energy figures. See `references/device-commands.md` for exact device/process commands.
 
 ---
 
@@ -89,6 +91,25 @@ python3 "$SKILL_DIR/scripts/compare_elements.py" \
   /tmp/ios-traces/01-baseline-power.xml:"Idle Baseline" \
   /tmp/ios-traces/02-pre-opt-power.xml:"Active Pre-Opt"
 ```
+
+> **iOS < 26 fallback** (Power Profiler requires iOS 26+): use Time Profiler for
+> attribution and Activity Monitor for magnitude, then compare those numbers:
+> ```bash
+> "$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template time --duration 60s --label "01-baseline"
+> "$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template time --duration 60s --label "02-pre-opt"
+> python3 "$SKILL_DIR/scripts/top_time.py" /tmp/ios-traces/01-baseline-*-time.xml 15 --leaf
+> python3 "$SKILL_DIR/scripts/top_time.py" /tmp/ios-traces/02-pre-opt-*-time.xml 15 --leaf
+>
+> "$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template activity --duration 30s --label "01-baseline"
+> "$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template activity --duration 30s --label "02-pre-opt"
+> python3 "$SKILL_DIR/scripts/compare_cpu.py" \
+>   /tmp/ios-traces/01-baseline-*-actmon.xml:"Idle Baseline" \
+>   /tmp/ios-traces/02-pre-opt-*-actmon.xml:"Active Pre-Opt" \
+>   --process "MyApp"
+> ```
+> Compare avg CPU ms/s (compare_cpu.py) and top-function sample weights
+> (top_time.py) across runs; never report energy figures that Power Profiler
+> could not produce.
 
 Attribute the bottleneck with specialized templates: `--template time` for hot call-trees, `alloc` with `top_categories.py` for allocation thrashing, `hitches` during UI interactions (scrolling, transitions, gestures) for render vs commit delays, `network` for unbatched radio wakeups. See `references/templates.md` for the full template reference.
 
@@ -140,7 +161,7 @@ Optimization Delta (Post-Opt vs Pre-Opt):
 
 ## Direct CLI
 
-You may call `xctrace` directly instead of the bundled scripts. Run `xcrun xctrace record --help` and `xcrun xctrace export --help` for full options. You may also modify the bundled scripts for a specific task — keep the originals intact.
+You may call `xctrace` directly instead of the bundled scripts. Run `xcrun xctrace record --help` and `xcrun xctrace export --help` for full options. You may also adapt the bundled scripts for a specific task — **copy them to a temp directory first and modify the copies; never edit files inside the skill directory** (Rule 12).
 
 ```bash
 # Record a cold-launch sample
@@ -160,3 +181,4 @@ xcrun xctrace export --input /tmp/ios-traces/power.trace \
 - `references/templates.md` — Instruments template picker (which template for which bottleneck).
 - `references/subsystems.md` — per-subsystem optimization patterns (radio, ProMotion, media decoding, audio).
 - `references/workload-reproduction.md` — **how to reproduce the workload (Tier 0–3), including simulator boundaries; mandatory read when interaction-based scenarios are being profiled.**
+- `references/device-commands.md` — exact `devicectl`/`xctrace` device commands, iOS-version template limits, process matching, screenshots, log & file access, and the script-copy rules.
