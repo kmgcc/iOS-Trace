@@ -4,82 +4,62 @@
 
 [![Agent Skills Open Standard](https://img.shields.io/badge/Agent_Skills-Open_Standard-blueviolet.svg)](https://agentskills.io)
 [![Install](https://img.shields.io/badge/Install-npx_skills_add-000000.svg)](https://skills.sh/kmgcc/iOS-Trace)
-[![Platform](https://img.shields.io/badge/Platform-iOS_15%2B_%2F_iPadOS-black.svg)](https://developer.apple.com/ios/)
+[![Platform](https://img.shields.io/badge/Platform-iOS_%2F_iPadOS-black.svg)](https://developer.apple.com/ios/)
 [![Tooling](https://img.shields.io/badge/Xcode-Instruments_%2F_xctrace-007AFF.svg)](https://developer.apple.com/xcode/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> Looking for macOS desktop app profiling? See [macOS-Trace](https://github.com/kmgcc/macOS-Trace).
+> Need profiling for macOS desktop apps? See [macOS-Trace](https://github.com/kmgcc/macOS-Trace).
 
-An autonomous, closed-loop performance optimization engine for **iOS / iPadOS apps** built on `xctrace` and Xcode Instruments. Lets AI coding agents (Claude Code, OpenAI Codex, Cursor, Google Antigravity, GitHub Copilot) work without touching the Instruments GUI: goal alignment → headless diagnostic traces → bottleneck isolation → targeted code fixes → differential re-testing → automatic iteration until targets are met.
-
----
+An agent-native runbook for profiling iOS and iPadOS apps. Choose instruments, workload reproduction, and success evidence based on the actual symptom and target device. Physical devices and simulators have different measurement boundaries. Bundled scripts are optional data-processing helpers, not a required workflow.
 
 ## Prerequisites
 
-- **Host**: macOS 12+, full Xcode or Xcode Command Line Tools (`xcrun xctrace version`).
-- **Target**: iOS/iPadOS app on a physical device or simulator. Devices must be unlocked, trusted by the Mac, and listed under `== Devices ==`; debug/development signing (`get-task-allow`) is required for `--attach`.
-- **Python**: 3.8+ (standard library only, zero third-party dependencies).
-
----
+- A usable Xcode or Command Line Tools installation on macOS. Target support depends on Xcode and device OS. Xcode 27 requires macOS Tahoe 26.6 or later and runs only on Apple silicon.
+- A physical device must be online, unlocked, and trusted by the Mac. Attach and UI testing also depend on signing, Developer Mode, and OS support.
+- Python 3.8+ only when using optional helper scripts.
 
 ## Installation
 
-### Recommended: one command (skills CLI matches each agent's directory)
+### Recommended: skills CLI
 
 ```bash
 npx skills add kmgcc/iOS-Trace
 ```
 
-Add `-g` for global (all projects), or `-a claude-code -g` to target a single agent.
+Use `-g` for a user-level installation, or `-a` to select an agent supported by the CLI.
 
-### Manual installation (directory name must be `ios-trace`)
+### Manual installation
 
-| Agent | Project scope | Global scope |
-| :--- | :--- | :--- |
-| Claude Code | `.claude/skills/ios-trace` | `~/.claude/skills/ios-trace` |
-| OpenAI Codex | `.agents/skills/ios-trace` | `~/.codex/skills/ios-trace` |
-| Cursor | `.agents/skills/ios-trace` | `~/.cursor/skills/ios-trace` |
-| OpenCode | `.agents/skills/ios-trace` | `~/.config/opencode/skills/ios-trace` |
-| Other agents | `.agents/skills/ios-trace` | `~/.agents/skills/ios-trace` |
+| Agent | User-level global directory |
+| :--- | :--- |
+| Codex | `~/.agents/skills/ios-trace` |
+| Antigravity | `~/.gemini/config/skills/ios-trace` |
+| DSH | `~/.dsh/skills/ios-trace` |
+| Claude Code | `~/.claude/skills/ios-trace` |
+| Cursor | `~/.cursor/skills/ios-trace` |
+| OpenCode | `~/.config/opencode/skills/ios-trace` |
 
-```bash
-git clone https://github.com/kmgcc/iOS-Trace.git ~/.claude/skills/ios-trace
-```
+Copy the repository contents into the selected directory. Discovery paths can change by agent version; follow the agent's current documentation for project-level installation.
 
----
+## Use
 
-## How to Invoke
+Ask the agent to use `ios-trace` for a concrete scenario, such as device scrolling hitches, overheating, slow launch, audio dropouts, or memory growth. It will choose a target, profiler, reproduction path, and comparison based on the question; no fixed script sequence is required.
 
-After installation, the agent auto-triggers from the description's conditions, or you can ask directly: "use iOS-Trace to optimize X". Minimal run:
+## Documentation map
 
-```bash
-SKILL_DIR="$HOME/.claude/skills/ios-trace"
-"$SKILL_DIR/scripts/run_trace.sh" --bundle-id "com.example.MyApp" --template power --duration 60s --label "01-baseline"
-python3 "$SKILL_DIR/scripts/compare_elements.py" /tmp/ios-traces/01-baseline-power.xml:"Idle" /tmp/ios-traces/02-active-power.xml:"Active"
-```
+- `SKILL.md` — core runbook.
+- `references/templates.md` — Instruments selection guide and Xcode 27 additions.
+- `references/workload-reproduction.md` — choosing a physical-device or simulator path for the question.
+- `references/device-commands.md` — device discovery, process verification, xctrace discovery, capture, and export.
+- `references/xcode-agent-mcp.md` — optional Xcode MCP workflow and permission boundaries.
+- `references/subsystems.md` — radio, ProMotion, media decoding, audio, and other optimization leads.
 
----
+## Boundaries
 
-## Documentation Map (load on demand)
-
-- **`SKILL.md`** — Core behavior: goal alignment, agent rules, the 4-phase loop.
-- **`references/templates.md`** — Instruments template picker (which template for which bottleneck).
-- **`references/subsystems.md`** — Per-subsystem optimization patterns (radio / ProMotion / media decoding / audio).
-- **`references/workload-reproduction.md`** — How to reproduce the workload (Tier 0–3, including simulator boundaries).
-- **`references/device-commands.md`** — Exact `devicectl`/`xctrace` device commands, iOS-version template limits, process matching, and script-copy rules.
-
----
-
-## Limitations & Notes
-
-- **Energy / thermal / CPU Impact metrics (Power Profiler) are unsupported on the simulator** — a physical device is required.
-- **Power Profiler requires iOS 26+**; on older devices use the Time Profiler (hot call-trees) + Activity Monitor (per-process CPU ms/s) pair — see `references/device-commands.md`.
-- **Simulator xctrace recording can be unstable**; for batch multi-run traces, a device is more reliable.
-- Simulator results do not represent device power / thermal / GPU behavior; use it for CPU-hotspot and logic triage only.
-- Processes targeted with `--attach` must be debug/development-signed builds.
-- For "AI operating the phone to reproduce a scenario", see `references/workload-reproduction.md`.
-
----
+- Simulator results can help with some CPU, logic, and UI investigations; they cannot establish physical-device power, radio, or thermal behavior.
+- Traces may contain prompts, paths, media metadata, or logs; treat them as sensitive task data.
+- MCP is an optional Xcode project/development integration. Runtime performance evidence comes from Instruments.
+- Follow project rules for processes, devices, data ownership, builds, tests, and release workflows.
 
 ## License
 

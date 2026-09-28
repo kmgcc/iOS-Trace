@@ -1,184 +1,52 @@
 ---
 name: ios-trace
-description: "Autonomous closed-loop performance optimization engine for iOS and iPadOS applications using xctrace and Xcode Instruments on physical devices and simulators. Handles the complete lifecycle: aligning optimization targets with the user, headless diagnostic trace capture, isolating bottlenecks, implementing code fixes, re-testing with differential A/B verification, and iterating until performance goals are met without manual GUI intervention. Use when the user reports battery drain or device overheating, high CPU usage, memory spikes or Jetsam OOM crashes, UI hitches or dropped frames (including ProMotion 120Hz stutter), slow cold launch, or excessive network radio overhead in an iOS/iPadOS app, and asks to profile, benchmark, or optimize it."
-compatibility: "macOS 12+ host, iOS 15+ physical device or simulator, Xcode Command Line Tools, Python 3.8+"
+description: "Agent-native runbook for evidence-based profiling and optimization of native iOS and iPadOS apps with xctrace and Xcode Instruments on physical devices or simulators. Use for CPU or battery use, memory growth or Jetsam, UI hitches, slow launch, concurrency stalls, audio glitches, or network activity. Choose instruments and workload reproduction to fit the issue; bundled scripts are optional helpers."
+compatibility: "macOS with Xcode or Command Line Tools providing xctrace; target support depends on the selected Xcode and device OS; Python 3.8+ only for optional helper scripts"
 license: MIT
 metadata:
   author: kmgcc
-  version: "1.4.0"
+  version: "1.5.0"
 ---
 
-# iOS-Trace: Autonomous Application Performance Optimization
+# iOS-Trace
 
-`iOS-Trace` is a closed-loop performance optimization engine for iOS and iPadOS applications (SwiftUI, UIKit, Metal, CoreAudio / AVAudioEngine, URLSession) on physical devices and simulators. Its core objective is to eliminate manual Instruments GUI interaction: an agent aligns on targets, captures headless traces, isolates bottlenecks, applies code fixes, re-tests with differential benchmarking, and iterates until performance targets are verified with empirical data.
+An agent-native runbook for investigating performance in native iOS and iPadOS apps. Choose tools and reproduction paths based on the reported symptom, device capabilities, and repository instructions. `xctrace` and Instruments provide the measurements; the GUI and CLI are both useful. Bundled scripts are optional helpers for repeatable exports and comparisons, not a required workflow.
 
----
+## Runbook
 
-## Phase 1: User Goal Alignment (Pre-Flight Questionnaire)
+1. **Understand the report.** Identify the affected app, user-visible symptom, reproduction steps, target OS/device class, and what evidence would show improvement. Ask only for missing details that materially affect the measurement. Do not impose generic numeric targets or assume every report needs code changes.
+2. **Inspect the target and toolchain.** Read repository instructions. Check active Xcode and `xctrace` versions, installed templates, target OS, device/simulator availability, build configuration, app process/bundle identity, and permissions. Use `xcrun xctrace list devices` to distinguish available devices from offline ones. Follow repository device, signing, and test rules.
+3. **Choose evidence that answers the question.** Use `references/templates.md` to select the smallest useful instrument or combination. Check the installed help for supported target types and options instead of assuming every Xcode/device pair exposes the same capability. Use Instruments UI when timelines or inspectors aid interpretation; use CLI capture/export when it is clearer and repeatable.
+4. **Choose the right target.** Use a physical device for battery, energy, thermal, radio, and device-specific GPU conclusions. A simulator can help with CPU-hotspot, logic, and interaction triage; it cannot establish physical-device energy or thermal behavior. Explain the limit if only simulator evidence is available.
+5. **Reproduce the real workload.** Read `references/workload-reproduction.md` when timing or interaction matters. Choose a trustworthy app hook, UI automation, test flow, or user-triggered interaction for the specific question. Verify that the action occurred and that the target app is in the recorded state. An idle trace is an optional control; it does not establish improvement to an active user scenario.
+6. **Capture with comparable conditions.** Keep the app foregrounded and the device awake for UI or rendering work. For before/after runs, align device model, OS, build configuration, app content, screen brightness, power state, network conditions, interaction, and capture scope where they affect the result. Record differences and avoid conclusions broader than the evidence.
+7. **Interpret before editing.** Tie the user-visible symptom to the relevant process, interval, thread, task, allocation, frame, network event, or call tree. Cross-check a suspected hot path against source and call sites. Separate measured results from inference; avoid changes when the trace does not support a concrete hypothesis.
+8. **Make a focused change and compare.** Follow repository instructions for code edits, device use, and validation. Re-run the same meaningful scenario with comparable conditions. If results are noisy, thermally constrained, or simulator-only, state that and refine the measurement before claiming success.
+9. **Report and preserve.** Summarize the scenario, target/device/OS, instruments, observed bottleneck, change, measured result, and unverified layers. Treat traces and exports as potentially sensitive. Keep or remove artifacts according to the user's and repository's retention rules; do not delete user data or recordings without a clear basis.
 
-Before modifying code or collecting traces, align with the user on optimization targets and success criteria. Use an interactive modal if available (`ask_question`, option lists); otherwise ask directly with structured options.
+## iOS measurement boundaries
 
-1. **Primary Optimization Objective**:
-   - A: Reduce battery drain, CPU utilization, and thermal throttling.
-   - B: Lower memory footprint / transient allocation spikes / prevent Jetsam OOM.
-   - C: Eliminate UI frame stuttering and dropped frames (ProMotion 120Hz Hitches).
-   - D: Accelerate cold launch time.
-   - E: Optimize network radio overhead / batch request efficiency.
+- Power Profiler energy and CPU-impact conclusions require a supported physical device/OS combination. It is not supported by the Simulator. Verify the current Xcode/device help before capture; never infer energy or thermal results from simulator CPU traces.
+- Device behavior changes with temperature, battery level, refresh rate, brightness, radio conditions, and foreground state. Repeat comparable runs on the same physical device when the question is about before/after changes.
+- A device listed under `== Devices Offline ==` is unavailable for recording. Unlock and trust a physical device, and keep it awake and foregrounded for the scenario.
+- Attach may be blocked by signing or OS policy. Use an authorized development build or supported launch mode; do not silently weaken signing or entitlements.
 
-2. **Specific Performance Targets (recommended defaults)**:
-   - **Battery & CPU**: idle < 15 M/s instructions, CPU Impact < 0.3; active < 80 M/s (or reduce 30–50%).
-   - **Memory & Jetsam**: resident RAM < 150 MB (utilities) / < 300 MB (rich media); allocation rate < 400 events/sec steady-state; 0 persistent leaks.
-   - **UI Smoothness**: hitch ratio < 5.0 ms/s (acceptable), < 1.0 ms/s (fluid / 120Hz); max hitch < 16.6 ms (60Hz) / < 8.33 ms (120Hz).
-   - **Launch Time**: time to first frame < 400 ms (excellent), < 800 ms (acceptable).
-   - **Network & Radio**: batch periodic pings into single burst requests to avoid radio tail standby power.
+## Xcode 27 and Instruments
 
-3. **Benchmark User Scenario**: ask which specific screen, interaction, device, or simulator to benchmark.
+When Xcode 27 is installed, load `references/templates.md` for new instruments and capture/export improvements. Capabilities depend on the installed Xcode and target OS. Swift Executor names require OS 27; on older systems they may appear as `Unknown executor`. The Foundation Models instrument covers Apple's Foundation Models framework, not arbitrary cloud or third-party model calls.
 
-Once targets are confirmed, proceed to Phase 2.
+For optional Xcode project/build/test integration through MCP, load `references/xcode-agent-mcp.md`. MCP complements Instruments profiling; do not enable a host MCP server or widen its permissions as an implicit trace step.
 
----
+## Optional helpers
 
-## Scope and Prerequisites
+- Use bundled scripts only when they fit the question or make a repetitive export/comparison easier. Resolve the skill directory dynamically and inspect a helper's usage before calling it.
+- Never edit scripts inside the installed skill. For a one-off parser adjustment, copy only the relevant helper to a task scratch directory and change the copy.
+- If the app already has a project-specific profiling workflow, follow its instructions and device/process/data boundaries before using generic examples here.
 
-- **Target platforms**: iOS/iPadOS apps on physical iPhone/iPad (USB or local network) or local iOS Simulators. For macOS desktop apps, use [macOS-Trace](https://github.com/kmgcc/macOS-Trace).
-- **Host**: macOS 12+ with full Xcode or Xcode Command Line Tools (`xcrun xctrace version`).
-- **Device readiness**: unlocked and trusted by the Mac; listed under `== Devices ==` (not `== Devices Offline ==`); Auto-Lock "Never" or display kept awake during recordings.
-- **Python**: 3.8+ (standard library only; zero pip dependencies).
-- **Entitlements**: debug builds or developer-provisioned builds with `get-task-allow` are required for `--attach <PID>`.
+## References (load as needed)
 
----
-
-## Rules for Agents
-
-1. **Verify device connection state**: run `xcrun xctrace list devices` first; never record against a device under `== Devices Offline ==`.
-2. **Prevent screen lock/backgrounding**: if the device locks or returns to home, iOS suspends the process and measurements are invalid. Keep the app foregrounded.
-3. **Establish a baseline first**: always capture an idle baseline before the active workload; compute `Delta = Active - Baseline`.
-4. **Use equal test parameters**: identical durations (default 60s), battery states, and input data across runs.
-5. **Zero third-party Python dependencies**: bundled scripts (`compare_elements.py`, `parse_power.py`, `top_categories.py`, `top_time.py`, `activity_cpu.py`, `compare_cpu.py`) use the standard library only.
-6. **Save outputs to `/tmp/ios-traces/`**: timestamped, scenario-tagged filenames.
-7. **Protect context budget**: never dump raw `.trace` bundles, call-trees, or unparsed XML into the conversation — they can be hundreds of MB. Always stream/filter/rank via the bundled scripts before reading.
-8. **Focus on primary bottlenecks**: profile first to confirm the dominant contributor; don't scatter micro-optimizations across innocent utilities.
-9. **Never silently alter UI, visual effects, or core behavior**: if an optimization affects visual fidelity or essential behavior, formally ask the user first and articulate the exact before/after tradeoff with quantified expected gain.
-10. **Clean up recording artifacts**: `run_trace.sh` auto-cleans the several-GB transient kernel traces (`instruments*.ktrace` in `$TMPDIR`). When running `xctrace` directly, clean them yourself before concluding:
-    ```bash
-    find "${TMPDIR:-/tmp}" -maxdepth 1 -type f -name 'instruments*.ktrace' -delete 2>/dev/null || true
-    ```
-11. **Resolve `SKILL_DIR` dynamically, never hardcode it**: the skill's install path varies by host and agent (Claude Code: `~/.claude/skills/ios-trace`; DSH: `~/.dsh/skills/ios-trace`; project scope: `<root>/.dsh/skills/ios-trace`). Locate it before calling bundled scripts, and reference scripts only via `"$SKILL_DIR/scripts/..."`.
-12. **Never edit files inside the skill directory**: if you need to adapt a bundled script, copy it to a temp directory first (e.g. `/tmp/my-trace-tools/`), modify the copy, and run the copy. Keep the originals untouched so every run sees the same baseline.
-13. **Check the device iOS version before choosing Power Profiler**: `Power Profiler` requires **iOS 26+**. On older devices use `--template time` (hot call-trees) + `--template activity` (per-process CPU ms/s) as the fallback pair, and never invent energy figures. See `references/device-commands.md` for exact device/process commands.
-
----
-
-## The 4-Phase Optimization Protocol
-
-### Phase 2: Diagnostic Profiling & Attribution
-
-```bash
-BUNDLE_ID="com.example.MyApp"
-
-# Locate the skill install dir (path varies by host/agent; see Rule 11)
-SKILL_DIR="$(ls -d "$HOME/.claude/skills/ios-trace" "$HOME/.dsh/skills/ios-trace" 2>/dev/null | head -1)"
-[ -n "$SKILL_DIR" ] || SKILL_DIR="$(find "$HOME" -maxdepth 6 \( -type d -o -type l \) -name ios-trace 2>/dev/null | head -1)"
-
-# Idle baseline (device unlocked, app foregrounded, workload paused)
-"$SKILL_DIR/scripts/run_trace.sh" --bundle-id "$BUNDLE_ID" --template power --duration 60s --label "01-baseline"
-
-# Active workload (user triggers the scenario in the app while this records)
-"$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template power --duration 60s --label "02-pre-opt"
-
-# Pre-optimization delta
-python3 "$SKILL_DIR/scripts/compare_elements.py" \
-  /tmp/ios-traces/01-baseline-power.xml:"Idle Baseline" \
-  /tmp/ios-traces/02-pre-opt-power.xml:"Active Pre-Opt"
-```
-
-> **iOS < 26 fallback** (Power Profiler requires iOS 26+): use Time Profiler for
-> attribution and Activity Monitor for magnitude, then compare those numbers:
-> ```bash
-> "$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template time --duration 60s --label "01-baseline"
-> "$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template time --duration 60s --label "02-pre-opt"
-> python3 "$SKILL_DIR/scripts/top_time.py" /tmp/ios-traces/01-baseline-*-time.xml 15 --leaf
-> python3 "$SKILL_DIR/scripts/top_time.py" /tmp/ios-traces/02-pre-opt-*-time.xml 15 --leaf
->
-> "$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template activity --duration 30s --label "01-baseline"
-> "$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template activity --duration 30s --label "02-pre-opt"
-> python3 "$SKILL_DIR/scripts/compare_cpu.py" \
->   /tmp/ios-traces/01-baseline-*-actmon.xml:"Idle Baseline" \
->   /tmp/ios-traces/02-pre-opt-*-actmon.xml:"Active Pre-Opt" \
->   --process "MyApp"
-> ```
-> Compare avg CPU ms/s (compare_cpu.py) and top-function sample weights
-> (top_time.py) across runs; never report energy figures that Power Profiler
-> could not produce.
-
-Attribute the bottleneck with specialized templates: `--template time` for hot call-trees, `alloc` with `top_categories.py` for allocation thrashing, `hitches` during UI interactions (scrolling, transitions, gestures) for render vs commit delays, `network` for unbatched radio wakeups. See `references/templates.md` for the full template reference.
-
-> **If the target workload requires interaction or reproduction** (taps, scrolling, gestures) — on a physical device or simulator — **read `references/workload-reproduction.md` before recording** and decide which reproduction tier to use.
-
-### Phase 3: Targeted Code Modification
-
-Apply minimal, surgical fixes based on findings:
-- **Memory spikes & Jetsam**: never materialize large assets at full resolution — downsample images at decode time (`CGImageSourceCreateThumbnailAtIndex`), decode video frames at playback size, render PDF pages on demand, and stream large documents instead of buffering them whole.
-- **ProMotion hitches**: remove complex shadows / offscreen blending; offload heavy layout calculations from the main thread.
-- **Radio energy overhead**: batch periodic network requests into unified payload bursts to eliminate radio tail standby power.
-- **Real-time audio**: zero heap allocations in CoreAudio render callbacks (`AVAudioEngine` / RemoteIO).
-
-Rebuild and deploy to the device.
-
-### Phase 4: Re-Test, Quantitative Review & Decision Gate
-
-```bash
-# $SKILL_DIR = skill install dir, resolved as in Phase 2 (Rule 11)
-# Post-optimization active workload
-"$SKILL_DIR/scripts/run_trace.sh" --process "MyApp" --template power --duration 60s --label "03-post-opt"
-
-# Compare Pre-Opt vs Post-Opt against Baseline
-python3 "$SKILL_DIR/scripts/compare_elements.py" \
-  /tmp/ios-traces/01-baseline-power.xml:"Idle Baseline" \
-  /tmp/ios-traces/02-pre-opt-power.xml:"Active Pre-Opt" \
-  /tmp/ios-traces/03-post-opt-power.xml:"Active Post-Opt"
-```
-
-Example Decision Output:
-
-```text
-Scenario                 Sec  CPU Avg  CPU Max  Display  GPU Avg  Total Instr    Instr M/s   WiFi Tx/Rx
-=========================================================================================================
-Idle Baseline             60     0.12     0.60     0.05     0.00        0.85G         14.2   0.0/0.0MB
-Active Pre-Opt            60     2.40     4.80     1.10     1.80       15.60G        260.0  14.2/1.8MB
-Active Post-Opt           60     0.55     1.10     0.15     0.20        4.20G         70.0   2.1/0.4MB
----------------------------------------------------------------------------------------------------------
-Optimization Delta (Post-Opt vs Pre-Opt):
-  Instruction throughput: -73.1% (70.0 vs 260.0 M/s)
-  CPU Average Impact:     -77.1% (0.55 vs 2.40)
-```
-
-**Decision Gate**: target met → present the comparison table and conclude. Target not met → keep the current optimization, isolate the next hotspot, repeat Phases 3–4.
-
-**Post-Report Cleanup**: after the user accepts the report, delete accumulated `.trace` bundles under `/tmp/ios-traces/` (each can be tens of GB) unless the user asks to keep them.
-
----
-
-## Direct CLI
-
-You may call `xctrace` directly instead of the bundled scripts. Run `xcrun xctrace record --help` and `xcrun xctrace export --help` for full options. You may also adapt the bundled scripts for a specific task — **copy them to a temp directory first and modify the copies; never edit files inside the skill directory** (Rule 12).
-
-```bash
-# Record a cold-launch sample
-xcrun xctrace record --device <UDID> --template 'Time Profiler' --time-limit 30s \
-  --output /tmp/ios-traces/launch.trace --launch -- com.example.MyApp <LaunchArgs>
-
-# Export the Power Impact table
-xcrun xctrace export --input /tmp/ios-traces/power.trace \
-  --xpath "/trace-toc/run[@number='1']/data/table[@schema='ProcessSubsystemPowerImpact']" \
-  > /tmp/ios-traces/power.xml
-```
-
----
-
-## Reference Documents (load on demand)
-
-- `references/templates.md` — Instruments template picker (which template for which bottleneck).
-- `references/subsystems.md` — per-subsystem optimization patterns (radio, ProMotion, media decoding, audio).
-- `references/workload-reproduction.md` — **how to reproduce the workload (Tier 0–3), including simulator boundaries; mandatory read when interaction-based scenarios are being profiled.**
-- `references/device-commands.md` — exact `devicectl`/`xctrace` device commands, iOS-version template limits, process matching, screenshots, log & file access, and the script-copy rules.
+- `references/templates.md` — choose instruments by symptom; includes Xcode 27 additions.
+- `references/workload-reproduction.md` — selecting and verifying device/simulator workload reproduction.
+- `references/device-commands.md` — device discovery, process selection, xctrace capabilities, capture, and export.
+- `references/xcode-agent-mcp.md` — optional Xcode 27 MCP integration and safe capability discovery.
+- `references/subsystems.md` — optimization patterns for radio, ProMotion, media decoding, audio, and other app subsystems.

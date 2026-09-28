@@ -4,82 +4,62 @@
 
 [![Agent Skills Open Standard](https://img.shields.io/badge/Agent_Skills-Open_Standard-blueviolet.svg)](https://agentskills.io)
 [![Install](https://img.shields.io/badge/Install-npx_skills_add-000000.svg)](https://skills.sh/kmgcc/iOS-Trace)
-[![Platform](https://img.shields.io/badge/Platform-iOS_15%2B_%2F_iPadOS-black.svg)](https://developer.apple.com/ios/)
+[![Platform](https://img.shields.io/badge/Platform-iOS_%2F_iPadOS-black.svg)](https://developer.apple.com/ios/)
 [![Tooling](https://img.shields.io/badge/Xcode-Instruments_%2F_xctrace-007AFF.svg)](https://developer.apple.com/xcode/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > 需要 macOS 桌面应用性能分析？见 [macOS-Trace](https://github.com/kmgcc/macOS-Trace)。
 
-基于 `xctrace` 与 Xcode Instruments 的 **iOS / iPadOS 自主闭环性能优化引擎**。让 AI 编码 Agent（Claude Code、OpenAI Codex、Cursor、Google Antigravity、GitHub Copilot）无需手动操作 Instruments GUI，即可完成：目标对齐 → 无头采样诊断 → 定位瓶颈 → 精准改码 → 复测量化 → 未达标自动迭代。
-
----
+面向 AI 编码 Agent 的 iOS / iPadOS 性能分析 runbook。Agent 根据真实症状和目标设备选择 Instruments、复现路径与验收证据；真机与模拟器各有不同测量边界。附带脚本仅是可选的数据处理工具，不是固定执行流程。
 
 ## 前置条件
 
-- **宿主**：macOS 12+，完整 Xcode 或 Xcode 命令行工具（`xcrun xctrace version`）。
-- **目标**：iOS/iPadOS App（真机或模拟器）。真机需解锁并信任此 Mac、出现在 `== Devices ==` 列表；调试/开发签名（`get-task-allow`）用于 `--attach`。
-- **Python**：3.8+（仅标准库，零第三方依赖）。
-
----
+- macOS 上可用的 Xcode 或 Command Line Tools；目标支持范围由当前 Xcode 与设备 OS 决定。Xcode 27 要求 macOS Tahoe 26.6 或更新版本，并仅支持 Apple silicon Mac。
+- 真机需在线、解锁并信任此 Mac；真机 attach 和 UI 测试还受签名、Developer Mode 与系统版本影响。
+- Python 3.8+ 仅用于可选脚本。
 
 ## 安装
 
-### 推荐：一条命令（skills CLI 自动匹配各 Agent 目录）
+### 推荐：skills CLI
 
 ```bash
 npx skills add kmgcc/iOS-Trace
 ```
 
-加 `-g` 全局安装（所有项目可用），或 `-a claude-code -g` 指定单个 Agent。
+使用 `-g` 安装到用户级目录；可用 `-a` 选择 CLI 支持的 Agent。
 
-### 手动安装（目录名必须为 `ios-trace`）
+### 手动安装
 
-| Agent | 项目级 | 用户级全局 |
-| :--- | :--- | :--- |
-| Claude Code | `.claude/skills/ios-trace` | `~/.claude/skills/ios-trace` |
-| OpenAI Codex | `.agents/skills/ios-trace` | `~/.codex/skills/ios-trace` |
-| Cursor | `.agents/skills/ios-trace` | `~/.cursor/skills/ios-trace` |
-| OpenCode | `.agents/skills/ios-trace` | `~/.config/opencode/skills/ios-trace` |
-| 其他 Agent | `.agents/skills/ios-trace` | `~/.agents/skills/ios-trace` |
+| Agent | 用户级全局目录 |
+| :--- | :--- |
+| Codex | `~/.agents/skills/ios-trace` |
+| Antigravity | `~/.gemini/config/skills/ios-trace` |
+| DSH | `~/.dsh/skills/ios-trace` |
+| Claude Code | `~/.claude/skills/ios-trace` |
+| Cursor | `~/.cursor/skills/ios-trace` |
+| OpenCode | `~/.config/opencode/skills/ios-trace` |
 
-```bash
-git clone https://github.com/kmgcc/iOS-Trace.git ~/.claude/skills/ios-trace
-```
+把仓库内容放入对应目录即可。具体发现路径可能随 Agent 版本变化；项目级安装请遵循该 Agent 当前文档。
 
----
+## 使用
 
-## 怎么调用
+要求 Agent 使用 `ios-trace` 调查明确的用户场景，例如真机滚动掉帧、发热、启动变慢、音频断续或内存增长。Agent 会按目标选择设备、采样器、复现方式和对比方法；不需要先运行固定脚本。
 
-安装后，Agent 会根据 description 里的触发条件自动匹配，或直接要求"用 iOS-Trace 优化 XX"。核心运行示例：
+## 文档地图
 
-```bash
-SKILL_DIR="$HOME/.claude/skills/ios-trace"
-"$SKILL_DIR/scripts/run_trace.sh" --bundle-id "com.example.MyApp" --template power --duration 60s --label "01-baseline"
-python3 "$SKILL_DIR/scripts/compare_elements.py" /tmp/ios-traces/01-baseline-power.xml:"Idle" /tmp/ios-traces/02-active-power.xml:"Active"
-```
+- `SKILL.md` — 核心执行 runbook。
+- `references/templates.md` — Instruments 选择指南与 Xcode 27 增强项。
+- `references/workload-reproduction.md` — 按问题选择真机或模拟器的复现路径。
+- `references/device-commands.md` — 设备发现、进程确认、xctrace 能力发现、记录与导出。
+- `references/xcode-agent-mcp.md` — 可选 Xcode MCP 工作流及权限边界。
+- `references/subsystems.md` — 射频、ProMotion、媒体解码、音频等优化线索。
 
----
+## 使用边界
 
-## 文档地图（按需读取）
-
-- **`SKILL.md`** — 核心行为指令：目标对齐、执行规则、4 阶段闭环协议。
-- **`references/templates.md`** — Instruments 模板选择（哪种瓶颈用哪个模板）。
-- **`references/subsystems.md`** — 各子系统调优知识（射频/ProMotion/媒体解码/音频）。
-- **`references/workload-reproduction.md`** — 负载如何复现（Tier 0–3，含模拟器边界）。
-- **`references/device-commands.md`** — 真机 `devicectl`/`xctrace` 命令、iOS 版本模板限制、进程匹配与脚本复制规则。
-
----
-
-## 局限与注意点
-
-- **能耗/发热/CPU Impact 指标（Power Profiler）模拟器不支持**，必须真机。
-- **Power Profiler 要求 iOS 26+**；更低版本真机请用 Time Profiler（热点归属）+ Activity Monitor（每进程 CPU ms/s）组合，见 `references/device-commands.md`。
-- **模拟器 xctrace 录制可能不稳定**，批量跑多轮 trace 用真机更可靠。
-- 模拟器结果不能代表真机功耗/发热/GPU 行为；模拟器只适合 CPU 热点与逻辑问题的快速定位。
-- 需要 `--attach` 的进程必须为 debug/开发签名构建。
-- 本 Skill 是测量与调优闭环；若需"AI 自动操作手机复现场景"，见 `references/workload-reproduction.md`。
-
----
+- 模拟器结果适合部分 CPU、逻辑和 UI 排查，不能证明真机功耗、射频或热表现。
+- trace 可能包含提示词、路径、媒体或日志信息，按敏感任务数据处理。
+- MCP 是可选的 Xcode 项目/开发集成；运行时性能证据来自 Instruments。
+- 遵循项目自身的进程、设备、数据所有权、构建、测试和发布规则。
 
 ## License
 
