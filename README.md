@@ -51,6 +51,7 @@ npx skills add kmgcc/iOS-Trace
 - `references/templates.md` — Instruments 选择指南与 Xcode 27 增强项。
 - `references/workload-reproduction.md` — 按问题选择真机或模拟器的复现路径。
 - `references/device-commands.md` — 设备发现、进程确认、xctrace 能力发现、记录与导出。
+- `references/storage-and-recovery.md` — Mac 主机临时空间、已删除但仍打开的 `.ktrace` 诊断与安全恢复。
 - `references/xcode-agent-mcp.md` — 可选 Xcode MCP 工作流及权限边界。
 - `references/subsystems.md` — 射频、ProMotion、媒体解码、音频等优化线索。
 

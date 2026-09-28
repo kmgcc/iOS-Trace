@@ -51,6 +51,7 @@ Ask the agent to use `ios-trace` for a concrete scenario, such as device scrolli
 - `references/templates.md` — Instruments selection guide and Xcode 27 additions.
 - `references/workload-reproduction.md` — choosing a physical-device or simulator path for the question.
 - `references/device-commands.md` — device discovery, process verification, xctrace discovery, capture, and export.
+- `references/storage-and-recovery.md` — Mac host temporary storage, deleted-open `.ktrace` diagnosis, and safe recovery.
 - `references/xcode-agent-mcp.md` — optional Xcode MCP workflow and permission boundaries.
 - `references/subsystems.md` — radio, ProMotion, media decoding, audio, and other optimization leads.
 

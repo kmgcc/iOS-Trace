@@ -29,6 +29,8 @@ Load when selecting a physical device or simulator, choosing attach versus launc
 
 Create an output location appropriate for the task and name traces for the scenario, device/OS, and run phase. Use the CLI when it preserves the question and capture scope; open Instruments for track relationships, inspectors, device-specific detail, or comparisons that are clearer visually.
 
+The recorder and its temporary files run on the Mac, including when the target is a physical device. Check host free space on both the temporary volume and the output volume before long captures. `--time-limit` limits collection time; it does not limit bytes or guarantee prompt finalization. Load `references/storage-and-recovery.md` if disk space falls unexpectedly, `xctrace` remains alive, or space does not return after capture.
+
 Before using custom recording options, inspect the installed template defaults and save only the reviewed changes needed for the question. Before exporting, use current help to restrict the time range, process, table, or fields to the evidence required. Treat traces and exports as potentially sensitive, and keep raw trace bundles and huge exports out of chat.
 
 If recording fails, report the Xcode/OS, target type, template, and relevant diagnostic; then adjust based on the failure. Do not retry with an arbitrary process, broader permissions, a reset device, or a different target that cannot answer the same question.
